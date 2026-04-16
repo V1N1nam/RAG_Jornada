@@ -1,0 +1,5 @@
+O desligamento por proteção térmica ocorre quando a temperatura do compressor ultrapassa o limite seguro de operação.
+
+Esse comportamento pode estar associado a superaquecimento, falha de ventilação ou acúmulo de sujeira em componentes do sistema.
+
+Quando houver desligamentos frequentes, é importante avaliar as condições térmicas do equipamento e a circulação de ar.

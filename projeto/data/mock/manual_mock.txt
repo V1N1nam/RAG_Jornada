@@ -1,0 +1,3 @@
+Alta temperatura de descarga pode indicar sujeira no condensador, baixa carga de refrigerante ou ventilação inadequada.
+
+Se o compressor desligar por proteção térmica, recomenda-se verificar a limpeza do condensador e o fluxo de ar.
