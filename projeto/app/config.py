@@ -5,13 +5,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-DATA_DIR = BASE_DIR / "data"
-MOCK_DIR = DATA_DIR / "mock"
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-USE_REAL_API = os.getenv("USE_REAL_API", "true").lower() == "true"
 
-VECTORSTORE_PATH = BASE_DIR / os.getenv(
-    "VECTORSTORE_PATH",
-    "data/vectorstore/faiss_index"
-)
+DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
+DB_PORT = int(os.getenv("DB_PORT", "5432"))
+DB_NAME = os.getenv("DB_NAME", "ragdb")
+DB_USER = os.getenv("DB_USER", "raguser")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "ragpass")
