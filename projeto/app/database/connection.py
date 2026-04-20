@@ -5,10 +5,15 @@ import psycopg
 def get_connection():
     database_url = os.getenv("DATABASE_URL")
 
-    if not database_url:
-        raise ValueError("DATABASE_URL não está definida")
+    if database_url:
+        return psycopg.connect(database_url, autocommit=False)
 
+    # fallback local (Docker)
     return psycopg.connect(
-        database_url,
-        autocommit=False
+        host="127.0.0.1",
+        port=5432,
+        dbname="ragdb",
+        user="raguser",
+        password="ragpass",
+        autocommit=False,
     )
