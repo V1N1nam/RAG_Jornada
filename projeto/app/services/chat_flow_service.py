@@ -7,6 +7,13 @@ from app.services.conversation_service import (
 from app.services.intent_service import detect_intent
 from app.services.rag_service import ask_question
 
+from app.services.natural_language_service import (
+    generate_greeting,
+    generate_problem_request,
+    generate_human_handoff,
+    generate_closing,
+    generate_fallback,
+)
 
 def handle_chat_message(phone: str, text: str) -> dict:
     conversation = register_user_message(phone, text)
@@ -14,7 +21,7 @@ def handle_chat_message(phone: str, text: str) -> dict:
     intent = detect_intent(text)
 
     if intent == "closing":
-        answer = "Perfeito! Se precisar de mais alguma coisa, é só me chamar."
+        answer = generate_closing(text)
         register_assistant_message(conversation["id"], answer)
         set_conversation_state(phone, "closed", "closing")
         return {
@@ -25,7 +32,7 @@ def handle_chat_message(phone: str, text: str) -> dict:
         }
 
     if intent == "human":
-        answer = "Certo. Posso encaminhar seu atendimento para um atendente."
+        answer = generate_human_handoff(text)
         register_assistant_message(conversation["id"], answer)
         set_conversation_state(phone, "awaiting_human", "human")
         return {
@@ -36,10 +43,7 @@ def handle_chat_message(phone: str, text: str) -> dict:
         }
 
     if current_state in ("new", "closed") and intent == "greeting":
-        answer = (
-            "Olá! Posso te ajudar com problemas no equipamento, dúvidas técnicas "
-            "ou encaminhamento para um atendente. Como posso ajudar?"
-        )
+        answer = generate_greeting(text)
         register_assistant_message(conversation["id"], answer)
         set_conversation_state(phone, "awaiting_intent", "greeting")
         return {
@@ -50,7 +54,7 @@ def handle_chat_message(phone: str, text: str) -> dict:
         }
 
     if current_state == "awaiting_intent" and intent == "problem":
-        answer = "Entendi. Pode me descrever melhor o problema que está acontecendo com o equipamento?"
+        answer = generate_problem_request(text)
         register_assistant_message(conversation["id"], answer)
         set_conversation_state(phone, "awaiting_problem_description", "problem")
         return {
@@ -88,7 +92,7 @@ def handle_chat_message(phone: str, text: str) -> dict:
             "context": rag_result["context"],
         }
 
-    answer = "Entendi. Pode me dar mais detalhes para eu te ajudar melhor?"
+    answer = generate_fallback(text)
     register_assistant_message(conversation["id"], answer)
     set_conversation_state(phone, "awaiting_intent", "fallback")
     return {
