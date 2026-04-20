@@ -27,8 +27,8 @@ def load_mock_documents(mock_dir: Path) -> list[Document]:
                         "chunk_id": i,
                         "category": file_path.stem,
                         "equipment": "compressor",
-                        "type": "manual_mock"
-                    }
+                        "type": "manual_mock",
+                    },
                 )
             )
 

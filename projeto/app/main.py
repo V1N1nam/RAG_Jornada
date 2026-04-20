@@ -12,7 +12,7 @@ def main():
     for i, source in enumerate(result["sources"], start=1):
         print(f"\n[{i}] Arquivo: {source['source']}")
         print(f"Categoria: {source['category']}")
-        print(f"Chunk: {source['chunk_id']}")
+        print(f"Distância: {source['distance']}")
         print(f"Conteúdo: {source['content']}")
 
     print("\n=== RESPOSTA ===")

@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 
-from app.services.rag_service import ask_question
+from app.services.chat_flow_service import handle_chat_message
 
 load_dotenv()
 
@@ -12,6 +12,7 @@ app = Flask(__name__)
 def home():
     return jsonify({"message": "API RAG online"})
 
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
@@ -20,13 +21,16 @@ def health():
 @app.route("/ask", methods=["POST"])
 def ask():
     data = request.get_json(silent=True) or {}
+    phone = str(data.get("phone", "")).strip()
     question = data.get("question", "").strip()
+
+    if not phone:
+        return jsonify({"error": "Campo 'phone' é obrigatório"}), 400
 
     if not question:
         return jsonify({"error": "Campo 'question' é obrigatório"}), 400
 
-    result = ask_question(question)
-
+    result = handle_chat_message(phone, question)
     return jsonify(result)
 
 

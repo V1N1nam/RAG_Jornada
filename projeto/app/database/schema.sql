@@ -42,3 +42,6 @@ ON messages(conversation_id);
 
 CREATE INDEX IF NOT EXISTS idx_document_chunks_document_id
 ON document_chunks(document_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_document_chunks_doc_chunk
+ON document_chunks(document_id, chunk_index);

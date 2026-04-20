@@ -1,7 +1,7 @@
 from app.database.connection import get_connection
 
 
-def create_chunk(
+def create_or_update_chunk(
     document_id: int,
     chunk_index: int,
     content: str,
@@ -17,6 +17,12 @@ def create_chunk(
                     document_id, chunk_index, content, category, equipment, embedding
                 )
                 VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (document_id, chunk_index)
+                DO UPDATE SET
+                    content = EXCLUDED.content,
+                    category = EXCLUDED.category,
+                    equipment = EXCLUDED.equipment,
+                    embedding = EXCLUDED.embedding
                 RETURNING id
                 """,
                 (document_id, chunk_index, content, category, equipment, embedding),
