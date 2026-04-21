@@ -5,7 +5,7 @@ from app.services.chat_flow_service import handle_chat_message
 
 import requests
 
-EVOLUTION_URL = "http://localhost:8080"
+EVOLUTION_URL = "http://projeto-evolution-api:8080"
 INSTANCE = "rag-bot"
 API_KEY = "123456"
 
@@ -103,4 +103,4 @@ def whatsapp_webhook():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(host="0.0.0.0", port=8000)
