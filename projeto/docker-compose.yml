@@ -1,13 +1,40 @@
+version: "3.9"
+
 services:
-  postgres:
-    image: pgvector/pgvector:pg17
+
+  api:
+    build: .
+    container_name: rag_api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+    restart: always
+
+  db:
+    image: ankane/pgvector:latest
     container_name: rag_postgres
-    restart: unless-stopped
     environment:
-      POSTGRES_DB: ragdb
       POSTGRES_USER: raguser
       POSTGRES_PASSWORD: ragpass
+      POSTGRES_DB: ragdb
     ports:
       - "5432:5432"
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: rag_redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+volumes:
+  pgdata:
