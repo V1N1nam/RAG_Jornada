@@ -48,17 +48,41 @@ def whatsapp_webhook():
     data = request.json
 
     try:
-        message = data["data"]["message"]
-        phone = data["data"]["key"]["remoteJid"].split("@")[0]
-    except Exception:
+        key = data["data"]["key"]
+        message_data = data["data"]["message"]
+
+        phone_full = key["remoteJid"]
+
+        # ❌ ignora grupos
+        if "@g.us" in phone_full:
+            return jsonify({"status": "ignored group"}), 200
+
+        # ✔ número limpo
+        phone = phone_full.split("@")[0]
+
+        # ✔ pega texto da mensagem (forma segura)
+        message = ""
+        if "conversation" in message_data:
+            message = message_data["conversation"]
+        elif "extendedTextMessage" in message_data:
+            message = message_data["extendedTextMessage"]["text"]
+
+        if not message:
+            return jsonify({"status": "no text"}), 200
+
+    except Exception as e:
+        print("Erro ao processar entrada:", e)
         return jsonify({"status": "ignored"}), 200
 
-    # chama seu sistema
+    # 🔥 chama seu sistema
     result = handle_chat_message(phone, message)
-
     answer = result if isinstance(result, str) else result.get("answer", "")
 
-    # envia resposta pro WhatsApp
+    # ❌ evita responder vazio
+    if not answer:
+        return jsonify({"status": "no answer"}), 200
+
+    # 🚀 envia resposta pro WhatsApp
     try:
         requests.post(
             f"{EVOLUTION_URL}/message/sendText/{INSTANCE}",
@@ -69,7 +93,8 @@ def whatsapp_webhook():
             json={
                 "number": phone,
                 "text": answer
-            }
+            },
+            timeout=10
         )
     except Exception as e:
         print("Erro ao enviar mensagem:", e)
