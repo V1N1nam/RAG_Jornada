@@ -7,13 +7,13 @@ services:
     container_name: projeto-db
     restart: always
     environment:
-      POSTGRES_DB: ragdb
       POSTGRES_USER: raguser
       POSTGRES_PASSWORD: ragpass
+      POSTGRES_DB: ragdb
     ports:
       - "5433:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
 
   redis:
     image: redis:6.2-alpine
@@ -21,7 +21,6 @@ services:
     restart: always
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -40,26 +39,21 @@ services:
     ports:
       - "8080:8080"
     environment:
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://raguser:ragpass@db:5432/ragdb
 
-      # 🔐 AUTH
-      AUTHENTICATION_API_KEY: "123456"
-
-      # 🧠 DATABASE
-      DATABASE_PROVIDER: "postgresql"
-      DATABASE_CONNECTION_URI: "postgresql://raguser:ragpass@db:5432/ragdb"
-
-      # ⚡ REDIS (IMPORTANTE — corrige seu erro de disconnect)
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      CACHE_REDIS_URI: redis://redis:6379/6
       CACHE_ENGINE: redis
       CACHE_ENABLED: "true"
-      CACHE_REDIS_URI: redis://redis:6379/6
 
-      # 🤖 WHATSAPP (CORREÇÃO DO SEU ERRO “Invalid integration”)
-      INTEGRATION: WHATSAPP-BAILEYS
-      PROVIDER: BAILEYS
+      AUTHENTICATION_API_KEY: 123456
 
-      # 🕒 TIMEZONE
+      # 🔥 FIX DO QR / BAILEYS (IMPORTANTE)
+      CONFIG_SESSION_PHONE_VERSION: 2.3000.1037828507
+      WEB_VERSION: 2.3000.1037828507
+
       TZ: America/Sao_Paulo
 
   api:
@@ -73,17 +67,9 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: ragdb
-      DB_USER: raguser
-      DB_PASSWORD: ragpass
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      OPENAI_API_KEY: ${k-	proj-3zr0sTt6tYM9R0JgKiHdu7gb6jgAAo1TErgH7ZAp20mllFH1O	QAGuqIOrr0icD6vPgNrlQ09O-T3BlbkFJ28Z32ok-	o5BP6fYtoixRJshaxwdwEx7z995Aj_tYYJ1O1xdtOSDkWBvXz2jcSq	MULGKgLN898A}
-      USE_REAL_API: "true"
-      VECTORSTORE_PATH: data/vectorstore/faiss_index
       EVOLUTION_URL: http://evolution-api:8080
 
 volumes:
-  pgdata:
+  db_data:

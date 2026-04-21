@@ -8,9 +8,9 @@ def get_connection():
     if database_url:
         return psycopg.connect(database_url, autocommit=False)
 
-    # fallback local (Docker)
+    # fallback Docker correto
     return psycopg.connect(
-        host="127.0.0.1",
+        host="db",   # 🔥 AQUI ESTAVA O ERRO
         port=5432,
         dbname="ragdb",
         user="raguser",
