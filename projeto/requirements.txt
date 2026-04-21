@@ -7,3 +7,5 @@ psycopg[binary]
 pgvector
 gunicorn
 requests
+uvicorn[standard]
+fastapi

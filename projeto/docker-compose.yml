@@ -1,40 +1,33 @@
-version: "3.9"
-
 services:
 
   api:
     build: .
-    container_name: rag_api
     ports:
       - "8000:8000"
-    env_file:
-      - .env
+    environment:
+      DB_HOST: db
+      DB_NAME: ragdb
+      DB_USER: raguser
+      DB_PASSWORD: ragpass
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      OPENAI_API_KEY: sua_chave
+
     depends_on:
       - db
       - redis
-    volumes:
-      - .:/app
-    restart: always
 
   db:
     image: ankane/pgvector:latest
-    container_name: rag_postgres
     environment:
+      POSTGRES_DB: ragdb
       POSTGRES_USER: raguser
       POSTGRES_PASSWORD: ragpass
-      POSTGRES_DB: ragdb
     ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    restart: always
+      - "5433:5433"
 
   redis:
     image: redis:7-alpine
-    container_name: rag_redis
     ports:
       - "6379:6379"
-    restart: always
-
-volumes:
-  pgdata:
