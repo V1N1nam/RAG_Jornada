@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
 
-  db:
+  projeto-db:
     image: ankane/pgvector:latest
     container_name: projeto-db
     restart: always
@@ -13,9 +13,9 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
 
-  redis:
+  projeto-redis:
     image: redis:6.2-alpine
     container_name: projeto-redis
     restart: always
@@ -27,49 +27,44 @@ services:
       timeout: 3s
       retries: 10
 
-  evolution-api:
+  projeto-api:
+    build: .
+    container_name: projeto-api
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://raguser:ragpass@projeto-db:5432/ragdb
+    depends_on:
+      - projeto-db
+      - projeto-redis
+
+  projeto-evolution-api:
     image: atendai/evolution-api:latest
     container_name: projeto-evolution-api
     restart: always
-    depends_on:
-      redis:
-        condition: service_healthy
-      db:
-        condition: service_started
     ports:
       - "8080:8080"
     environment:
       DATABASE_PROVIDER: postgresql
-      DATABASE_CONNECTION_URI: postgresql://raguser:ragpass@db:5432/ragdb
+      DATABASE_CONNECTION_URI: postgresql://raguser:ragpass@projeto-db:5432/ragdb
 
-      REDIS_HOST: redis
+      REDIS_HOST: projeto-redis
       REDIS_PORT: 6379
-      CACHE_REDIS_URI: redis://redis:6379/6
+
       CACHE_ENGINE: redis
       CACHE_ENABLED: "true"
+      CACHE_REDIS_URI: redis://projeto-redis:6379/6
 
       AUTHENTICATION_API_KEY: 123456
 
-      # 🔥 FIX DO QR / BAILEYS (IMPORTANTE)
-      CONFIG_SESSION_PHONE_VERSION: 2.3000.1037828507
-      WEB_VERSION: 2.3000.1037828507
-
       TZ: America/Sao_Paulo
 
-  api:
-    build: .
-    container_name: projeto-api
-    restart: always
     depends_on:
-      - db
-      - redis
-      - evolution-api
-    ports:
-      - "8000:8000"
-    environment:
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      EVOLUTION_URL: http://evolution-api:8080
+      - projeto-db
+      - projeto-redis
 
 volumes:
-  db_data:
+  pgdata:
