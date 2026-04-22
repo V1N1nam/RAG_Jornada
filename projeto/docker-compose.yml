@@ -62,6 +62,9 @@ services:
 
       TZ: America/Sao_Paulo
 
+      CONFIG_SESSION_PHONE_VERSION: 2.3000.1037828507
+      WEB_VERSION: 2.3000.1037828507
+
     depends_on:
       - projeto-db
       - projeto-redis

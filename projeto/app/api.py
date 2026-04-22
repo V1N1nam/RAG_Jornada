@@ -45,62 +45,58 @@ def ask():
 
 @app.route("/webhook/whatsapp", methods=["POST"])
 def whatsapp_webhook():
-    data = request.json
-
     try:
-        key = data["data"]["key"]
-        message_data = data["data"]["message"]
+        data = request.get_json(force=True)
 
-        phone_full = key["remoteJid"]
+        message = data.get("data", {}).get("message", {})
+        key = data.get("data", {}).get("key", {})
 
-        # ❌ ignora grupos
+        phone_full = key.get("remoteJid", "")
+
         if "@g.us" in phone_full:
             return jsonify({"status": "ignored group"}), 200
+        
+        if not phone_full or "@g.us" in phone_full:
+            return jsonify({"status": "ignored"}), 200
 
-        # ✔ número limpo
         phone = phone_full.split("@")[0]
 
-        # ✔ pega texto da mensagem (forma segura)
-        message = ""
-        if "conversation" in message_data:
-            message = message_data["conversation"]
-        elif "extendedTextMessage" in message_data:
-            message = message_data["extendedTextMessage"]["text"]
+        # 🔥 captura qualquer texto possível
+        message_text = (
+            message.get("conversation")
+            or message.get("extendedTextMessage", {}).get("text")
+            or message.get("imageMessage", {}).get("caption")
+            or message.get("videoMessage", {}).get("caption")
+            or ""
+        )
 
-        if not message:
+        if not message_text:
             return jsonify({"status": "no text"}), 200
 
-    except Exception as e:
-        print("Erro ao processar entrada:", e)
-        return jsonify({"status": "ignored"}), 200
+        # 🔥 processa IA/RAG
+        result = handle_chat_message(phone, message_text)
 
-    # 🔥 chama seu sistema
-    result = handle_chat_message(phone, message)
-    answer = result if isinstance(result, str) else result.get("answer", "")
+        answer = result.get("answer") if isinstance(result, dict) else str(result)
 
-    # ❌ evita responder vazio
-    if not answer:
-        return jsonify({"status": "no answer"}), 200
+        if not answer:
+            return jsonify({"status": "no answer"}), 200
 
-    # 🚀 envia resposta pro WhatsApp
-    try:
+        # 🔥 envia resposta
         requests.post(
             f"{EVOLUTION_URL}/message/sendText/{INSTANCE}",
-            headers={
-                "apikey": API_KEY,
-                "Content-Type": "application/json"
-            },
+            headers={"apikey": API_KEY},
             json={
                 "number": phone,
                 "text": answer
             },
             timeout=10
         )
+
+        return jsonify({"status": "ok"})
+
     except Exception as e:
-        print("Erro ao enviar mensagem:", e)
-
-    return jsonify({"status": "ok"})
-
+        print("WEBHOOK ERROR:", e)
+        return jsonify({"status": "error"}), 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)
