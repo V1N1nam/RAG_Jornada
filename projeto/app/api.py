@@ -46,50 +46,45 @@ def ask():
 @app.route("/webhook/whatsapp", methods=["POST"])
 def whatsapp_webhook():
     try:
-        data = request.get_json(force=True)
+        payload = request.get_json(force=True)
 
-        message = data.get("data", {}).get("message", {})
-        key = data.get("data", {}).get("key", {})
+        event = payload.get("event")
+
+        # ❌ IGNORA eventos que não são mensagem
+        if event != "messages.upsert":
+            return jsonify({"status": "ignored event"}), 200
+
+        data = payload.get("data", {})
+        key = data.get("key", {})
+        message = data.get("message", {})
 
         phone_full = key.get("remoteJid", "")
 
         if "@g.us" in phone_full:
             return jsonify({"status": "ignored group"}), 200
-        
-        if not phone_full or "@g.us" in phone_full:
-            return jsonify({"status": "ignored"}), 200
 
         phone = phone_full.split("@")[0]
 
-        # 🔥 captura qualquer texto possível
-        message_text = (
+        text = (
             message.get("conversation")
             or message.get("extendedTextMessage", {}).get("text")
-            or message.get("imageMessage", {}).get("caption")
-            or message.get("videoMessage", {}).get("caption")
             or ""
         )
 
-        if not message_text:
+        if not text:
             return jsonify({"status": "no text"}), 200
 
-        # 🔥 processa IA/RAG
-        result = handle_chat_message(phone, message_text)
+        result = handle_chat_message(phone, text)
 
         answer = result.get("answer") if isinstance(result, dict) else str(result)
 
         if not answer:
             return jsonify({"status": "no answer"}), 200
 
-        # 🔥 envia resposta
         requests.post(
             f"{EVOLUTION_URL}/message/sendText/{INSTANCE}",
             headers={"apikey": API_KEY},
-            json={
-                "number": phone,
-                "text": answer
-            },
-            timeout=10
+            json={"number": phone, "text": answer},
         )
 
         return jsonify({"status": "ok"})
