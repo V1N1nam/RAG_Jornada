@@ -3,6 +3,22 @@ import requests
 API_URL = "https://rag-jornada.onrender.com/ask"
 
 
+def should_end(answer: str) -> bool:
+    """
+    Fallback caso backend não envie 'end'
+    """
+    triggers = [
+        "até mais",
+        "encerrando",
+        "fico à disposição",
+        "posso ajudar em mais alguma coisa",
+        "qualquer coisa estou por aqui"
+    ]
+
+    answer_lower = answer.lower()
+    return any(trigger in answer_lower for trigger in triggers)
+
+
 def main():
     phone = input("Telefone: ").strip()
 
@@ -31,7 +47,15 @@ def main():
 
             data = response.json()
 
-            print(f"\nAssistente: {data.get('answer')}\n")
+            answer = data.get("answer", "")
+            end = data.get("end", False)
+
+            print(f"\nAssistente: {answer}\n")
+
+            # 🔥 ENCERRAMENTO AUTOMÁTICO
+            if end or should_end(answer):
+                print("Chat encerrado automaticamente.\n")
+                break
 
         except Exception as e:
             print(f"\nErro de conexão: {e}\n")
