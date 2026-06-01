@@ -23,6 +23,7 @@ def ask():
     data = request.get_json(silent=True) or {}
     phone = str(data.get("phone", "")).strip()
     question = data.get("question", "").strip()
+    loja_id_raw = data.get("loja_id")
 
     if not phone:
         return jsonify({"error": "Campo 'phone' é obrigatório"}), 400
@@ -30,7 +31,9 @@ def ask():
     if not question:
         return jsonify({"error": "Campo 'question' é obrigatório"}), 400
 
-    result = handle_chat_message(phone, question)
+    loja_id = int(loja_id_raw) if loja_id_raw is not None else None
+
+    result = handle_chat_message(phone, question, loja_id=loja_id)
     return jsonify(result)
 
 

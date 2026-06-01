@@ -4,9 +4,7 @@ API_URL = "https://rag-jornada.onrender.com/ask"
 
 
 def should_end(answer: str) -> bool:
-    """
-    Fallback caso backend não envie 'end'
-    """
+    
     triggers = [
         "até mais",
         "encerrando",
@@ -52,7 +50,6 @@ def main():
 
             print(f"\nAssistente: {answer}\n")
 
-            # 🔥 ENCERRAMENTO AUTOMÁTICO
             if end or should_end(answer):
                 print("Chat encerrado automaticamente.\n")
                 break

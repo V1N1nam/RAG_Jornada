@@ -9,10 +9,11 @@ def retrieve_context(question: str, k: int = 3):
     return results
 
 
-def ask_question(question: str, k: int = 3) -> dict:
+def ask_question(question: str, k: int = 3, extra_context: str = "") -> dict:
     results = retrieve_context(question, k=k)
 
-    context = "\n\n".join([item["content"] for item in results])
+    rag_context = "\n\n".join([item["content"] for item in results])
+    context = (extra_context + "\n\n" + rag_context).strip() if extra_context else rag_context
 
     answer = ask_llm(context, question)
 

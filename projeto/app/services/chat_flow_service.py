@@ -6,6 +6,7 @@ from app.services.conversation_service import (
 )
 from app.services.intent_service import detect_intent
 from app.services.rag_service import ask_question
+from app.services.eletrofio_service import buscar_contexto_loja
 
 from app.services.natural_language_service import (
     generate_greeting,
@@ -15,7 +16,7 @@ from app.services.natural_language_service import (
     generate_fallback,
 )
 
-def handle_chat_message(phone: str, text: str) -> dict:
+def handle_chat_message(phone: str, text: str, loja_id: int | None = None) -> dict:
     conversation = register_user_message(phone, text)
     current_state = conversation["current_state"]
     intent = detect_intent(text)
@@ -64,8 +65,10 @@ def handle_chat_message(phone: str, text: str) -> dict:
             "answer": answer,
         }
 
+    eletrofio_ctx = buscar_contexto_loja(loja_id) if loja_id else ""
+
     if current_state == "awaiting_problem_description":
-        rag_result = ask_question(text, k=3)
+        rag_result = ask_question(text, k=3, extra_context=eletrofio_ctx)
         answer = rag_result["answer"]
         register_assistant_message(conversation["id"], answer)
         set_conversation_state(phone, "in_support", "problem_description")
@@ -76,10 +79,11 @@ def handle_chat_message(phone: str, text: str) -> dict:
             "answer": answer,
             "sources": rag_result["sources"],
             "context": rag_result["context"],
+            "loja_id": loja_id,
         }
 
     if intent in ("question", "problem"):
-        rag_result = ask_question(text, k=3)
+        rag_result = ask_question(text, k=3, extra_context=eletrofio_ctx)
         answer = rag_result["answer"]
         register_assistant_message(conversation["id"], answer)
         set_conversation_state(phone, "in_support", intent)
@@ -90,6 +94,7 @@ def handle_chat_message(phone: str, text: str) -> dict:
             "answer": answer,
             "sources": rag_result["sources"],
             "context": rag_result["context"],
+            "loja_id": loja_id,
         }
 
     answer = generate_fallback(text)
