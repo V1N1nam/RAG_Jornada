@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 
 from app.services.chat_flow_service import handle_chat_message
+from app.services.whatsapp_service import send_message
 
 load_dotenv()
 
@@ -35,6 +36,47 @@ def ask():
 
     result = handle_chat_message(phone, question, loja_id=loja_id)
     return jsonify(result)
+
+
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    data = request.get_json(silent=True) or {}
+
+    event = data.get("event", "")
+    if event != "messages.upsert":
+        return jsonify({"status": "ignored"}), 200
+
+    msg_data = data.get("data", {})
+    key = msg_data.get("key", {})
+
+    if key.get("fromMe"):
+        return jsonify({"status": "ignored"}), 200
+
+    remote_jid = key.get("remoteJid", "")
+    if remote_jid.endswith("@g.us"):
+        return jsonify({"status": "ignored"}), 200
+
+    phone = remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "")
+    if not phone:
+        return jsonify({"status": "ignored"}), 200
+
+    message_obj = msg_data.get("message", {})
+    text = (
+        message_obj.get("conversation")
+        or message_obj.get("extendedTextMessage", {}).get("text")
+        or ""
+    ).strip()
+
+    if not text:
+        return jsonify({"status": "ignored"}), 200
+
+    result = handle_chat_message(phone, text)
+    answer = result.get("answer", "")
+
+    if answer:
+        send_message(phone, answer)
+
+    return jsonify({"status": "ok"}), 200
 
 
 if __name__ == "__main__":
