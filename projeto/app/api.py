@@ -73,13 +73,13 @@ def webhook():
     result = handle_chat_message(phone, text)
     answer = result.get("answer", "")
 
-    app.logger.info(f"[webhook] phone={phone} state={result.get('state')} intent={result.get('intent')} answer={repr(answer[:80]) if answer else 'EMPTY'}")
+    print(f"[webhook] phone={phone} state={result.get('state')} intent={result.get('intent')} answer={repr(answer[:80]) if answer else 'EMPTY'}", flush=True)
 
     if answer:
         ok = send_message(phone, answer)
-        app.logger.info(f"[webhook] send_message -> {ok}")
+        print(f"[webhook] send_message -> {ok}", flush=True)
     else:
-        app.logger.warning("[webhook] answer vazio, nada enviado")
+        print("[webhook] answer vazio, nada enviado", flush=True)
 
     return jsonify({"status": "ok"}), 200
 
