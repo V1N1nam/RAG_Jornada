@@ -10,7 +10,8 @@ def retrieve_context(question: str, k: int = 3):
 
 
 def ask_question(question: str, k: int = 3, extra_context: str = "") -> dict:
-    results = retrieve_context(question, k=k)
+    search_query = (question + " " + extra_context[:400]).strip() if extra_context else question
+    results = retrieve_context(search_query, k=k)
 
     rag_context = "\n\n".join([item["content"] for item in results])
     context = (extra_context + "\n\n" + rag_context).strip() if extra_context else rag_context
