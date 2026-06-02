@@ -47,6 +47,8 @@ def webhook():
         return jsonify({"status": "ignored"}), 200
 
     msg_data = data.get("data", {})
+    print(f"[webhook] payload keys: {list(msg_data.keys())}", flush=True)
+    print(f"[webhook] sender={msg_data.get('sender')} pushName={msg_data.get('pushName')}", flush=True)
     key = msg_data.get("key", {})
 
     if key.get("fromMe"):
@@ -56,9 +58,12 @@ def webhook():
     if remote_jid.endswith("@g.us"):
         return jsonify({"status": "ignored"}), 200
 
-    phone = remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "")
+    phone = remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "").replace("@lid", "")
     if not phone:
         return jsonify({"status": "ignored"}), 200
+
+    # Usa o JID completo para enviar de volta pelo Evolution API
+    send_to = remote_jid
 
     message_obj = msg_data.get("message", {})
     text = (
@@ -76,7 +81,7 @@ def webhook():
     print(f"[webhook] phone={phone} state={result.get('state')} intent={result.get('intent')} answer={repr(answer[:80]) if answer else 'EMPTY'}", flush=True)
 
     if answer:
-        ok = send_message(phone, answer)
+        ok = send_message(send_to, answer)
         print(f"[webhook] send_message -> {ok}", flush=True)
     else:
         print("[webhook] answer vazio, nada enviado", flush=True)
