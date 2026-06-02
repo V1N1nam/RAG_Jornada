@@ -56,7 +56,13 @@ def webhook():
     if remote_jid.endswith("@g.us"):
         return jsonify({"status": "ignored"}), 200
 
-    phone = remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "").replace("@lid", "")
+    if remote_jid.endswith("@lid"):
+        sender_pn = msg_data.get("senderPn") or msg_data.get("SenderPn") or ""
+        send_to = sender_pn if sender_pn else remote_jid
+    else:
+        send_to = remote_jid
+
+    phone = send_to.replace("@s.whatsapp.net", "").replace("@c.us", "").replace("@lid", "")
     if not phone:
         return jsonify({"status": "ignored"}), 200
 
@@ -76,8 +82,8 @@ def webhook():
     print(f"[webhook] phone={phone} state={result.get('state')} intent={result.get('intent')} answer={repr(answer[:80]) if answer else 'EMPTY'}", flush=True)
 
     if answer:
-        ok = send_message(remote_jid, answer)
-        print(f"[webhook] send_message to={remote_jid} -> {ok}", flush=True)
+        ok = send_message(send_to, answer)
+        print(f"[webhook] send_message to={send_to} -> {ok}", flush=True)
     else:
         print("[webhook] answer vazio, nada enviado", flush=True)
 
