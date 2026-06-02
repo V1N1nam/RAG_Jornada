@@ -12,6 +12,8 @@ def send_message(phone: str, text: str) -> bool:
     payload = {"number": phone, "text": text}
     try:
         resp = requests.post(url, json=payload, headers=headers, timeout=15)
+        print(f"[send_message] status={resp.status_code} body={resp.text[:300]}", flush=True)
         return resp.status_code in (200, 201)
-    except Exception:
+    except Exception as e:
+        print(f"[send_message] exception={e}", flush=True)
         return False
