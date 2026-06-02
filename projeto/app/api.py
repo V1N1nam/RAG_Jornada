@@ -47,7 +47,6 @@ def webhook():
         return jsonify({"status": "ignored"}), 200
 
     msg_data = data.get("data", {})
-    print(f"[webhook] full_data={data}", flush=True)
     key = msg_data.get("key", {})
 
     if key.get("fromMe"):
@@ -57,12 +56,13 @@ def webhook():
     if remote_jid.endswith("@g.us"):
         return jsonify({"status": "ignored"}), 200
 
-    phone = remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "").replace("@lid", "")
+    # sender está na raiz do payload com o número real (@s.whatsapp.net)
+    sender_jid = data.get("sender", "")
+    send_to = sender_jid if sender_jid else remote_jid
+
+    phone = send_to.replace("@s.whatsapp.net", "").replace("@c.us", "").replace("@lid", "")
     if not phone:
         return jsonify({"status": "ignored"}), 200
-
-    # Usa o JID completo para enviar de volta pelo Evolution API
-    send_to = remote_jid
 
     message_obj = msg_data.get("message", {})
     text = (
