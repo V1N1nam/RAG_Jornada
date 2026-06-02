@@ -1,4 +1,9 @@
-from app.database.repositories.conversation_repository import get_or_create_conversation
+import re
+
+from app.database.repositories.conversation_repository import (
+    get_or_create_conversation,
+    update_conversation_loja,
+)
 from app.services.conversation_service import (
     register_user_message,
     register_assistant_message,
@@ -16,10 +21,26 @@ from app.services.natural_language_service import (
     generate_fallback,
 )
 
+_LOJA_RE = re.compile(r'(?:unidade|loja|id|cod(?:igo)?)[^\d]*(\d{2,6})', re.IGNORECASE)
+
+
+def _extrair_loja_id(text: str) -> int | None:
+    m = _LOJA_RE.search(text)
+    return int(m.group(1)) if m else None
+
+
 def handle_chat_message(phone: str, text: str, loja_id: int | None = None) -> dict:
     conversation = register_user_message(phone, text)
     current_state = conversation["current_state"]
     intent = detect_intent(text)
+
+    # Extrai loja_id da mensagem ou usa o da conversa salva
+    loja_id_extraido = _extrair_loja_id(text)
+    if loja_id_extraido:
+        loja_id = loja_id_extraido
+        update_conversation_loja(phone, loja_id)
+    elif loja_id is None:
+        loja_id = conversation.get("loja_id")
 
     if intent == "closing":
         answer = generate_closing(text)

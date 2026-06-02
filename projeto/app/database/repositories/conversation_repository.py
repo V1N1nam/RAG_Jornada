@@ -6,7 +6,7 @@ def get_conversation_by_phone(phone: str):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, phone, current_state, last_intent, is_active, created_at, updated_at
+                SELECT id, phone, current_state, last_intent, is_active, created_at, updated_at, loja_id
                 FROM conversations
                 WHERE phone = %s
                 """,
@@ -24,6 +24,7 @@ def get_conversation_by_phone(phone: str):
                 "is_active": row[4],
                 "created_at": row[5],
                 "updated_at": row[6],
+                "loja_id": row[7],
             }
 
 
@@ -57,7 +58,7 @@ def get_conversation_by_id(conversation_id: int):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, phone, current_state, last_intent, is_active, created_at, updated_at
+                SELECT id, phone, current_state, last_intent, is_active, created_at, updated_at, loja_id
                 FROM conversations
                 WHERE id = %s
                 """,
@@ -75,7 +76,18 @@ def get_conversation_by_id(conversation_id: int):
                 "is_active": row[4],
                 "created_at": row[5],
                 "updated_at": row[6],
+                "loja_id": row[7],
             }
+
+
+def update_conversation_loja(phone: str, loja_id: int):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE conversations SET loja_id = %s, updated_at = NOW() WHERE phone = %s",
+                (loja_id, phone),
+            )
+        conn.commit()
 
 
 def update_conversation_state(phone: str, current_state: str, last_intent: str | None = None):

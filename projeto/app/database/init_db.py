@@ -9,6 +9,9 @@ def init_db():
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(schema_sql)
+            cur.execute(
+                "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS loja_id INTEGER;"
+            )
         conn.commit()
 
     print("Banco inicializado com sucesso.")
