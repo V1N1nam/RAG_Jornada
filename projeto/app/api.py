@@ -80,8 +80,8 @@ def webhook():
     print(f"[webhook] phone={phone} state={result.get('state')} intent={result.get('intent')} answer={repr(answer[:80]) if answer else 'EMPTY'}", flush=True)
 
     if answer:
-        ok = send_message(send_to, answer)
-        print(f"[webhook] send_message -> {ok}", flush=True)
+        ok = send_message(phone, answer)
+        print(f"[webhook] send_message to={phone} -> {ok}", flush=True)
     else:
         print("[webhook] answer vazio, nada enviado", flush=True)
 
