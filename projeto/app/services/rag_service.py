@@ -16,7 +16,15 @@ def ask_question(question: str, k: int = 3, extra_context: str = "") -> dict:
     rag_context = "\n\n".join([item["content"] for item in results])
     context = (extra_context + "\n\n" + rag_context).strip() if extra_context else rag_context
 
-    answer = ask_llm(context, question)
+    llm_question = question
+    if extra_context:
+        llm_question = (
+            question
+            + "\n\nCom base nos dados acima: informe quais alarmes estão ativos, "
+            "em qual equipamento ou local, e explique o que cada um significa tecnicamente."
+        )
+
+    answer = ask_llm(context, llm_question)
 
     sources = [
         {
