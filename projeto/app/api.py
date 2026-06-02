@@ -47,8 +47,7 @@ def webhook():
         return jsonify({"status": "ignored"}), 200
 
     msg_data = data.get("data", {})
-    print(f"[webhook] payload keys: {list(msg_data.keys())}", flush=True)
-    print(f"[webhook] sender={msg_data.get('sender')} pushName={msg_data.get('pushName')}", flush=True)
+    print(f"[webhook] full_data={data}", flush=True)
     key = msg_data.get("key", {})
 
     if key.get("fromMe"):
