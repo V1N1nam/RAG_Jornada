@@ -7,4 +7,4 @@ TOKEN_MAX_AGE = 3600  # 1 hora
 
 def generate_dash_link(loja_id: int) -> str:
     token = _serializer.dumps({"loja_id": loja_id})
-    return f"{DASH_BASE_URL}/dash/{token}"
+    return f"{DASH_BASE_URL}/dash?t={token}"

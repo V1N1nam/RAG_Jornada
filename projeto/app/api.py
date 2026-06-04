@@ -96,14 +96,15 @@ def webhook():
     return jsonify({"status": "ok"}), 200
 
 
-@app.route("/dash/<token>")
-def dash_loja(token):
+@app.route("/dash")
+def dash_loja():
+    token = request.args.get("t", "")
     try:
         data = _token_serializer.loads(token, max_age=3600)
         loja_id = int(data["loja_id"])
     except SignatureExpired:
         return "<h2>Link expirado. Solicite um novo link pelo chat.</h2>", 403
-    except (BadSignature, KeyError):
+    except (BadSignature, KeyError, Exception):
         return "<h2>Link inválido.</h2>", 403
 
     dados = buscar_alarmes_loja(loja_id)
