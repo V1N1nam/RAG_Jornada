@@ -1,12 +1,18 @@
-from flask import Flask, request, jsonify
+from datetime import datetime
+
+from flask import Flask, request, jsonify, render_template
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from dotenv import load_dotenv
 
 from app.services.chat_flow_service import handle_chat_message
 from app.services.whatsapp_service import send_message
+from app.services.eletrofio_service import buscar_alarmes_loja
+from app.config import DASH_SECRET
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="templates")
+_token_serializer = URLSafeTimedSerializer(DASH_SECRET)
 
 
 @app.route("/", methods=["GET"])
@@ -88,6 +94,27 @@ def webhook():
         print("[webhook] answer vazio, nada enviado", flush=True)
 
     return jsonify({"status": "ok"}), 200
+
+
+@app.route("/dash/<token>")
+def dash_loja(token):
+    try:
+        data = _token_serializer.loads(token, max_age=3600)
+        loja_id = int(data["loja_id"])
+    except SignatureExpired:
+        return "<h2>Link expirado. Solicite um novo link pelo chat.</h2>", 403
+    except (BadSignature, KeyError):
+        return "<h2>Link inválido.</h2>", 403
+
+    dados = buscar_alarmes_loja(loja_id)
+    return render_template(
+        "loja_dash.html",
+        loja_id=dados["loja_id"],
+        loja_nome=dados["loja_nome"],
+        stats=dados["stats"],
+        alarmes=dados["alarmes"],
+        atualizado=datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+    )
 
 
 if __name__ == "__main__":

@@ -81,3 +81,57 @@ def buscar_contexto_loja(loja_id: int) -> str:
             )
 
     return "\n".join(lines)
+
+
+CRIT_CONFIG = {
+    "C": {"label": "Crítica",  "color": "#ef4444"},
+    "A": {"label": "Alta",     "color": "#f97316"},
+    "M": {"label": "Média",    "color": "#eab308"},
+    "B": {"label": "Baixa",    "color": "#3b82f6"},
+    "I": {"label": "Info",     "color": "#6c757d"},
+}
+
+
+def buscar_alarmes_loja(loja_id: int) -> dict:
+    """Retorna dados estruturados de alarmes para o dashboard da loja."""
+    try:
+        todos = _get({"route": "alarmes"})
+    except Exception:
+        todos = []
+
+    alarmes_loja = [a for a in todos if a.get("lojaId") == loja_id]
+
+    loja_nome = alarmes_loja[0].get("lojaNm", f"Unidade {loja_id}") if alarmes_loja else f"Unidade {loja_id}"
+
+    por_crit = {k: {"count": 0, "label": v["label"], "color": v["color"]} for k, v in CRIT_CONFIG.items()}
+    sem_tratativa = 0
+    linhas = []
+
+    for a in alarmes_loja:
+        crit = a.get("criticidade", "I")
+        if crit in por_crit:
+            por_crit[crit]["count"] += 1
+        if not a.get("eventoDhCad"):
+            sem_tratativa += 1
+        linhas.append({
+            "criticidade":   crit,
+            "crit_label":    CRIT_CONFIG.get(crit, CRIT_CONFIG["I"])["label"],
+            "tag":           a.get("dispositivoNm", ""),
+            "alarme_desc":   a.get("alarmeDesc", ""),
+            "tempo":         a.get("tempo", ""),
+            "sem_tratativa": not a.get("eventoDhCad"),
+        })
+
+    ordem = {"C": 0, "A": 1, "M": 2, "B": 3, "I": 4}
+    linhas.sort(key=lambda x: ordem.get(x["criticidade"], 9))
+
+    return {
+        "loja_id":   loja_id,
+        "loja_nome": loja_nome,
+        "stats": {
+            "total":         len(alarmes_loja),
+            "por_crit":      por_crit,
+            "sem_tratativa": sem_tratativa,
+        },
+        "alarmes": linhas,
+    }
