@@ -34,6 +34,13 @@ Não invente informações técnicas.
     return _call_llm(instruction, user_input)
 
 
+def generate_loja_confirmation_ask(loja_id: int) -> str:
+    return (
+        f"Olá! No seu último acesso identificamos a unidade *{loja_id}*. "
+        f"Ainda é essa mesma? _(Responda *sim* ou envie o novo número)_"
+    )
+
+
 def generate_greeting_ask_loja(user_input: str) -> str:
     instruction = """
 Você é um assistente de suporte técnico para sistemas de refrigeração.

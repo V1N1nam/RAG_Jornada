@@ -9,13 +9,14 @@ from app.services.conversation_service import (
     register_assistant_message,
     set_conversation_state,
 )
-from app.services.intent_service import detect_intent, detect_menu_choice
+from app.services.intent_service import detect_intent, detect_menu_choice, detect_meta_request, detect_confirmation
 from app.services.rag_service import ask_question
 from app.services.eletrofio_service import buscar_contexto_loja
 from app.services.dashboard_service import generate_dash_link
 
 from app.services.natural_language_service import (
     generate_greeting_ask_loja,
+    generate_loja_confirmation_ask,
     generate_loja_confirmation_menu,
     generate_problem_request,
     generate_human_handoff,
@@ -65,13 +66,72 @@ def handle_chat_message(phone: str, text: str, loja_id: int | None = None) -> di
         set_conversation_state(phone, "awaiting_human", "human")
         return {"phone": phone, "state": "awaiting_human", "intent": "human", "answer": answer}
 
+    # Meta-requests: menu ou dash funcionam em qualquer estado de suporte
+    if current_state not in ("new", "closed", "awaiting_loja_id", "awaiting_loja_confirmation"):
+        meta = detect_meta_request(text)
+        if meta == "menu":
+            answer = (
+                generate_loja_confirmation_menu(loja_id)
+                if loja_id
+                else "Por favor, informe o número da sua unidade primeiro."
+            )
+            register_assistant_message(conversation["id"], answer)
+            set_conversation_state(phone, "awaiting_menu_choice", "menu_requested")
+            return {"phone": phone, "state": "awaiting_menu_choice", "intent": "menu_requested", "answer": answer, "loja_id": loja_id}
+
+        if meta == "dash":
+            if loja_id:
+                link = generate_dash_link(loja_id)
+                answer = f"Aqui está o dashboard da unidade *{loja_id}*:\n{link}\n\n_Válido por 1 hora._"
+            else:
+                answer = "Não encontrei a unidade vinculada. Informe o número da unidade primeiro."
+            register_assistant_message(conversation["id"], answer)
+            return {"phone": phone, "state": current_state, "intent": "dash", "answer": answer, "loja_id": loja_id}
+
     # ── Onboarding ───────────────────────────────────────────────────────────
 
     if current_state in ("new", "closed"):
+        if loja_id:
+            # Já tem loja salva — pede confirmação
+            answer = generate_loja_confirmation_ask(loja_id)
+            register_assistant_message(conversation["id"], answer)
+            set_conversation_state(phone, "awaiting_loja_confirmation", "greeting")
+            return {"phone": phone, "state": "awaiting_loja_confirmation", "intent": "greeting", "answer": answer, "loja_id": loja_id}
+        # Sem loja salva — pede o ID
         answer = generate_greeting_ask_loja(text)
         register_assistant_message(conversation["id"], answer)
         set_conversation_state(phone, "awaiting_loja_id", "greeting")
         return {"phone": phone, "state": "awaiting_loja_id", "intent": "greeting", "answer": answer}
+
+    if current_state == "awaiting_loja_confirmation":
+        confirmed = detect_confirmation(text)
+        loja_id_extraido = _extrair_loja_id(text)
+
+        if loja_id_extraido:
+            # Mandou um número novo direto
+            loja_id = loja_id_extraido
+            update_conversation_loja(phone, loja_id)
+            answer = generate_loja_confirmation_menu(loja_id)
+            register_assistant_message(conversation["id"], answer)
+            set_conversation_state(phone, "awaiting_menu_choice", "loja_confirmed")
+            return {"phone": phone, "state": "awaiting_menu_choice", "intent": "loja_confirmed", "answer": answer, "loja_id": loja_id}
+
+        if confirmed is True:
+            answer = generate_loja_confirmation_menu(loja_id)
+            register_assistant_message(conversation["id"], answer)
+            set_conversation_state(phone, "awaiting_menu_choice", "loja_confirmed")
+            return {"phone": phone, "state": "awaiting_menu_choice", "intent": "loja_confirmed", "answer": answer, "loja_id": loja_id}
+
+        if confirmed is False:
+            answer = "Tudo bem! Qual é o número correto da sua unidade?"
+            register_assistant_message(conversation["id"], answer)
+            set_conversation_state(phone, "awaiting_loja_id", "loja_change")
+            return {"phone": phone, "state": "awaiting_loja_id", "intent": "loja_change", "answer": answer}
+
+        # Resposta não reconhecida — repete a pergunta
+        answer = generate_loja_confirmation_ask(loja_id)
+        register_assistant_message(conversation["id"], answer)
+        return {"phone": phone, "state": "awaiting_loja_confirmation", "intent": "confirmation_retry", "answer": answer, "loja_id": loja_id}
 
     if current_state == "awaiting_loja_id":
         loja_id_extraido = _extrair_loja_id(text)

@@ -24,6 +24,26 @@ def detect_intent(text: str) -> str:
     return "question"
 
 
+def detect_confirmation(text: str) -> bool | None:
+    """Retorna True para sim, False para não, None se não reconhecido."""
+    t = normalize_text(text)
+    if t in ("sim", "s", "yes", "isso", "correto", "certo", "é", "é essa", "é essa mesmo", "confirmo"):
+        return True
+    if t in ("não", "nao", "n", "no", "errado", "errada", "outro", "outra", "trocar", "mudar"):
+        return False
+    return None
+
+
+def detect_meta_request(text: str) -> str | None:
+    """Detecta pedidos de menu ou dashboard que funcionam em qualquer estado."""
+    t = normalize_text(text)
+    if "menu" in t or "opç" in t or "opc" in t or "voltar" in t or "opções" in t:
+        return "menu"
+    if "dashboard" in t or "dash" in t or "painel" in t:
+        return "dash"
+    return None
+
+
 def detect_menu_choice(text: str) -> str | None:
     t = normalize_text(text)
 
