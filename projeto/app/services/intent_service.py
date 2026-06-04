@@ -22,3 +22,21 @@ def detect_intent(text: str) -> str:
         return "problem"
 
     return "question"
+
+
+def detect_menu_choice(text: str) -> str | None:
+    t = normalize_text(text)
+
+    if t in ("1", "1️⃣") or "alarme" in t:
+        return "alarmes"
+
+    if t in ("2", "2️⃣") or "dúvida" in t or "duvida" in t or "pergunta" in t or "duvid" in t:
+        return "duvida"
+
+    if t in ("3", "3️⃣") or "técnico" in t or "tecnico" in t or "atendente" in t or "humano" in t or "pessoa" in t:
+        return "tecnico"
+
+    if t in ("4", "4️⃣") or "dashboard" in t or "dash" in t or "visualizar" in t or "painel" in t:
+        return "dash"
+
+    return None

@@ -20,6 +20,12 @@ import time
 import threading
 from datetime import datetime
 
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+
+DASH_SECRET = os.getenv("DASH_SECRET", "dev-secret-eletrofrio")
+_token_serializer = URLSafeTimedSerializer(DASH_SECRET)
+_TOKEN_MAX_AGE = 3600
+
 sys.path.insert(0, os.path.dirname(__file__))
 
 import numpy as np
@@ -252,6 +258,37 @@ def api_abrir_chamado():
         return jsonify({"status": "ok", "resposta": resposta})
     except Exception as e:
         return jsonify({"status": "erro", "mensagem": str(e)}), 500
+
+
+@app.route("/dash/<token>")
+def dash_loja(token):
+    import pandas as pd
+    try:
+        data = _token_serializer.loads(token, max_age=_TOKEN_MAX_AGE)
+        loja_id = int(data["loja_id"])
+    except SignatureExpired:
+        return "<h2>Link expirado. Solicite um novo link pelo chat.</h2>", 403
+    except (BadSignature, KeyError):
+        return "<h2>Link inválido.</h2>", 403
+
+    alarmes_raw = _cache["alarmes_raw"]
+    df_all = processar_alarmes(alarmes_raw) if alarmes_raw else pd.DataFrame()
+
+    df = df_all[df_all["loja_id"] == loja_id].copy() if not df_all.empty else pd.DataFrame()
+
+    loja_nome = df["loja_nome"].iloc[0] if not df.empty and "loja_nome" in df.columns else f"Unidade {loja_id}"
+    stats = _computar_stats(df)
+    linhas = _preparar_linhas(df, alarmes_raw)
+    atualizado = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+    return render_template(
+        "loja_dash.html",
+        loja_id=loja_id,
+        loja_nome=loja_nome,
+        stats=stats,
+        alarmes=linhas,
+        atualizado=atualizado,
+    )
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

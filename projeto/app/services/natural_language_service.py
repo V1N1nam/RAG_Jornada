@@ -34,6 +34,31 @@ Não invente informações técnicas.
     return _call_llm(instruction, user_input)
 
 
+def generate_greeting_ask_loja(user_input: str) -> str:
+    instruction = """
+Você é um assistente de suporte técnico para sistemas de refrigeração.
+
+Responda à saudação do usuário de forma curta, educada e natural (máximo 1 linha).
+Em seguida, peça o número de identificação da unidade para poder consultar as informações.
+
+Exemplo de tom: "Olá! Para te ajudar melhor, qual é o número da sua unidade?"
+
+Responda em tom de WhatsApp, máximo 2 linhas. Não invente informações.
+"""
+    return _call_llm(instruction, user_input)
+
+
+def generate_loja_confirmation_menu(loja_id: int) -> str:
+    return (
+        f"Perfeito! Unidade *{loja_id}* identificada. ✅\n\n"
+        "Como posso te ajudar hoje?\n\n"
+        "*1* — Verificar alarmes ativos\n"
+        "*2* — Tirar uma dúvida técnica\n"
+        "*3* — Falar com um técnico profissional\n"
+        "*4* — Visualizar dashboard da unidade"
+    )
+
+
 def generate_problem_request(user_input: str) -> str:
     instruction = """
 Você é um assistente de suporte técnico para sistemas de refrigeração.

@@ -1,35 +1,45 @@
 from dotenv import load_dotenv
-from app.services.rag_service import ask_question
-from app.services.eletrofio_service import buscar_contexto_loja
+from app.services.chat_flow_service import handle_chat_message
+from app.database.repositories.conversation_repository import update_conversation_state
 
 load_dotenv()
 
+PHONE_TEST = "5511999990000"
+
 
 def main():
-    loja_id_input = input("ID da loja (deixe em branco para ignorar): ").strip()
-    loja_id = int(loja_id_input) if loja_id_input.isdigit() else None
+    # Reset para "new" a cada execução no terminal
+    update_conversation_state(PHONE_TEST, "new", None)
 
-    print("\nChat iniciado (digite 'sair' para encerrar)\n")
+    print("=" * 50)
+    print("  Teste do fluxo de chat (terminal)")
+    print(f"  Telefone simulado: {PHONE_TEST}")
+    print("  Digite 'sair' para encerrar.")
+    print("=" * 50)
+    print()
 
     while True:
-        question = input("Pergunta: ").strip()
+        user_text = input("Você: ").strip()
 
-        if question.lower() == "sair":
+        if not user_text:
+            continue
+
+        if user_text.lower() == "sair":
             print("Encerrando.")
             break
 
-        extra_context = buscar_contexto_loja(loja_id) if loja_id else ""
-        result = ask_question(question, extra_context=extra_context)
+        result = handle_chat_message(PHONE_TEST, user_text)
 
-        print("\n=== FONTES ENCONTRADAS ===")
-        for i, source in enumerate(result["sources"], start=1):
-            print(f"\n[{i}] Arquivo: {source['source']}")
-            print(f"Categoria: {source['category']}")
-            print(f"Distância: {source['distance']}")
-            print(f"Conteúdo: {source['content']}")
+        print(f"\nAssistente: {result['answer']}")
+        print(f"  [estado={result['state']} | intent={result['intent']}", end="")
+        if result.get("loja_id"):
+            print(f" | loja_id={result['loja_id']}", end="")
+        print("]")
 
-        print("\n=== RESPOSTA ===")
-        print(result["answer"])
+        if result.get("sources"):
+            print("  Fontes:")
+            for i, s in enumerate(result["sources"], 1):
+                print(f"    [{i}] {s['source']} | dist={s['distance']:.4f}")
         print()
 
 
