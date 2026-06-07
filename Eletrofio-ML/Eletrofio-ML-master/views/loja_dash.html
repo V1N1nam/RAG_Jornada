@@ -42,19 +42,6 @@
     .footer-ts { font-size: .7rem; color: #475569; text-align: center; padding: .75rem; }
     .sem-trat-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%;
                     background: #f97316; margin-right: .3rem; vertical-align: middle; }
-    .risco-card { background: #1e293b; border-radius: 10px; padding: .75rem 1rem;
-                  margin-bottom: .5rem; border-left: 4px solid #334155; }
-    .risco-card.nivel-critico { border-color: #ef4444; }
-    .risco-card.nivel-alto    { border-color: #f97316; }
-    .risco-card.nivel-atencao { border-color: #eab308; }
-    .risco-card.nivel-normal  { border-color: #22c55e; }
-    .risco-nm    { font-size: .8rem; font-weight: 700; color: #e2e8f0; }
-    .risco-motivo { font-size: .75rem; color: #94a3b8; margin-top: .2rem; }
-    .badge-risco-critico  { background: #7f1d1d; color: #fca5a5; }
-    .badge-risco-alto     { background: #7c2d12; color: #fdba74; }
-    .badge-risco-atencao  { background: #713f12; color: #fde047; }
-    .badge-risco-normal   { background: #14532d; color: #86efac; }
-    .badge-risco-sem_dados{ background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
   </style>
 </head>
 <body>
@@ -86,27 +73,6 @@
     <div class="lbl">Sem Trat.</div>
   </div>
 </div>
-
-{% if analise %}
-<div class="section">
-  <div class="section-title">Análise Comportamental</div>
-  {% for d in analise %}
-  <div class="risco-card nivel-{{ d.risco_nivel }}">
-    <div class="d-flex justify-content-between align-items-start">
-      <span class="risco-nm">{{ d.risco_icon }} {{ d.dispositivoNm }}</span>
-      <span class="badge-crit badge-risco-{{ d.risco_nivel }}">{{ d.risco_label }}</span>
-    </div>
-    {% if d.risco_motivos %}
-      {% for m in d.risco_motivos %}
-      <div class="risco-motivo"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ m }}</div>
-      {% endfor %}
-    {% else %}
-      <div class="risco-motivo"><i class="bi bi-check-circle-fill me-1" style="color:#22c55e"></i>Comportamento dentro do esperado</div>
-    {% endif %}
-  </div>
-  {% endfor %}
-</div>
-{% endif %}
 
 <div class="section">
   <div class="section-title">Alarmes ativos</div>

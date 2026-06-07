@@ -11,7 +11,7 @@ from app.services.conversation_service import (
 )
 from app.services.intent_service import detect_intent, detect_menu_choice, detect_meta_request, detect_confirmation
 from app.services.rag_service import ask_question
-from app.services.eletrofio_service import buscar_contexto_loja
+from app.services.eletrofio_service import buscar_contexto_loja, analisar_risco_loja
 from app.services.dashboard_service import generate_dash_link
 
 from app.services.natural_language_service import (
@@ -162,6 +162,17 @@ def handle_chat_message(phone: str, text: str, loja_id: int | None = None) -> di
 
         if choice == "alarmes":
             eletrofio_ctx = buscar_contexto_loja(loja_id) if loja_id else ""
+            if loja_id:
+                try:
+                    analise = analisar_risco_loja(loja_id, max_devices=3)
+                    if analise:
+                        linhas = ["\n=== ANÁLISE COMPORTAMENTAL (TELEMETRIA) ==="]
+                        for d in analise:
+                            motivos = "; ".join(d["risco_motivos"]) if d["risco_motivos"] else "comportamento dentro do esperado"
+                            linhas.append(f"  {d['dispositivoNm']}: {d['risco_label'].upper()} — {motivos}")
+                        eletrofio_ctx += "\n".join(linhas)
+                except Exception:
+                    pass
             rag_result = ask_question("quais alarmes estão ativos", k=3, extra_context=eletrofio_ctx, mode="alarmes")
             answer = rag_result["answer"]
             register_assistant_message(conversation["id"], answer)
