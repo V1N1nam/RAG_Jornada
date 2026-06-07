@@ -145,6 +145,50 @@ def analisar_risco_loja(loja_id: int, max_devices: int = 6) -> list:
     return resultado
 
 
+def buscar_dashboard_loja(loja_id: int) -> dict:
+    risco_raw      = _ml_get("/api/dashboard/risco")
+    financeiro_raw = _ml_get("/api/dashboard/financeiro")
+    saude_raw      = _ml_get("/api/dashboard/saude")
+    modelo_raw     = _ml_get("/api/dashboard/modelo")
+
+    # Risco — filtrado por loja_id
+    risco_dados = (risco_raw or {}).get("dados", [])
+    risco_loja  = [d for d in risco_dados if d.get("loja_id") == loja_id]
+    loja_nome   = risco_loja[0].get("loja_nome", f"Unidade {loja_id}") if risco_loja else f"Unidade {loja_id}"
+
+    # Financeiro — filtrado por loja_nome
+    fin_raw     = ((financeiro_raw or {}).get("dados") or {})
+    fin_devices = fin_raw.get("devices", [])
+    fin_loja    = [d for d in fin_devices if d.get("loja_nome") == loja_nome]
+    fin_totais  = {
+        "exposicao_diaria": sum(d.get("exposicao_diaria", 0) for d in fin_loja),
+        "economia_diaria":  sum(d.get("economia_diaria", 0) for d in fin_loja),
+        "custo_intervencao": sum(d.get("custo_intervencao", 0) for d in fin_loja),
+    }
+
+    # Saúde — acha a entrada da loja pelo nome
+    saude_dados   = ((saude_raw or {}).get("dados") or {})
+    saude_por_loja = saude_dados.get("por_loja", [])
+    saude_loja    = next((l for l in saude_por_loja if l.get("nome") == loja_nome), None)
+
+    # Modelo — global, top 8 features
+    modelo_dados = ((modelo_raw or {}).get("dados") or {})
+
+    return {
+        "loja_id":   loja_id,
+        "loja_nome": loja_nome,
+        "risco":     risco_loja,
+        "financeiro": {"devices": fin_loja, "totais": fin_totais},
+        "saude":     saude_loja,
+        "modelo": {
+            "feature_importance": modelo_dados.get("feature_importance", [])[:8],
+            "modelo_info":        modelo_dados.get("modelo_info", {}),
+            "score_medio":        modelo_dados.get("score_medio"),
+            "n_devices_scored":   modelo_dados.get("n_devices_scored"),
+        },
+    }
+
+
 def buscar_contexto_loja(loja_id: int) -> str:
     todos = _get_alarmes()
     alarmes_loja = [a for a in todos if a.get("lojaId") == loja_id]

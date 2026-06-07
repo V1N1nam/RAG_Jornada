@@ -3,138 +3,259 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard — Unidade {{ loja_id }}</title>
+  <title>Dashboard — {{ loja_nome }}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet" />
   <style>
-    body { background: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
-    .header { background: #1e293b; padding: 1rem 1.25rem; border-bottom: 1px solid #334155; }
-    .header h1 { font-size: 1.1rem; font-weight: 700; margin: 0; }
-    .header .sub { font-size: .75rem; color: #94a3b8; }
-    .kpi-row { display: flex; gap: .75rem; overflow-x: auto; padding: 1rem 1.25rem; }
-    .kpi { background: #1e293b; border-radius: 10px; padding: .75rem 1rem; min-width: 100px; flex: 1; }
-    .kpi .num { font-size: 1.6rem; font-weight: 800; line-height: 1; }
-    .kpi .lbl { font-size: .7rem; color: #94a3b8; margin-top: .2rem; }
-    .kpi.critica .num { color: #ef4444; }
-    .kpi.alta .num    { color: #f97316; }
-    .kpi.media .num   { color: #eab308; }
-    .kpi.baixa .num   { color: #3b82f6; }
-    .kpi.total .num   { color: #e2e8f0; }
-    .section { padding: 0 1.25rem 1.25rem; }
-    .section-title { font-size: .8rem; font-weight: 600; color: #94a3b8; text-transform: uppercase;
-                     letter-spacing: .05em; margin-bottom: .75rem; }
-    .alarm-card { background: #1e293b; border-radius: 10px; padding: .875rem 1rem;
-                  margin-bottom: .5rem; border-left: 4px solid #334155; }
-    .alarm-card.crit-C { border-color: #ef4444; }
-    .alarm-card.crit-A { border-color: #f97316; }
-    .alarm-card.crit-M { border-color: #eab308; }
-    .alarm-card.crit-B { border-color: #3b82f6; }
-    .alarm-tag  { font-size: .8rem; font-weight: 700; color: #e2e8f0; }
-    .alarm-desc { font-size: .78rem; color: #94a3b8; margin-top: .15rem; }
-    .alarm-meta { font-size: .7rem; color: #64748b; margin-top: .3rem; }
-    .badge-crit { font-size: .65rem; padding: .2rem .5rem; border-radius: 4px; font-weight: 600; }
-    .badge-C { background: #7f1d1d; color: #fca5a5; }
-    .badge-A { background: #7c2d12; color: #fdba74; }
-    .badge-M { background: #713f12; color: #fde047; }
-    .badge-B { background: #1e3a5f; color: #93c5fd; }
-    .badge-I { background: #1e293b; color: #94a3b8; }
-    .no-alarms { text-align: center; color: #64748b; padding: 2rem 0; font-size: .9rem; }
-    .footer-ts { font-size: .7rem; color: #475569; text-align: center; padding: .75rem; }
-    .sem-trat-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%;
-                    background: #f97316; margin-right: .3rem; vertical-align: middle; }
-    .risco-card { background: #1e293b; border-radius: 10px; padding: .75rem 1rem;
-                  margin-bottom: .5rem; border-left: 4px solid #334155; }
-    .risco-card.nivel-critico { border-color: #ef4444; }
-    .risco-card.nivel-alto    { border-color: #f97316; }
-    .risco-card.nivel-atencao { border-color: #eab308; }
-    .risco-card.nivel-normal  { border-color: #22c55e; }
-    .risco-nm    { font-size: .8rem; font-weight: 700; color: #e2e8f0; }
-    .risco-motivo { font-size: .75rem; color: #94a3b8; margin-top: .2rem; }
-    .badge-risco-critico  { background: #7f1d1d; color: #fca5a5; }
-    .badge-risco-alto     { background: #7c2d12; color: #fdba74; }
-    .badge-risco-atencao  { background: #713f12; color: #fde047; }
-    .badge-risco-normal   { background: #14532d; color: #86efac; }
-    .badge-risco-sem_dados{ background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+    body { background:#0f172a; color:#e2e8f0; font-family:'Inter',sans-serif; }
+
+    /* Header */
+    .header { background:#1e293b; padding:1rem 1.25rem; border-bottom:1px solid #334155; }
+    .header h1 { font-size:1.05rem; font-weight:700; margin:0; }
+    .header .sub { font-size:.72rem; color:#94a3b8; }
+
+    /* KPI strip */
+    .kpi-row { display:flex; gap:.6rem; overflow-x:auto; padding:1rem 1.25rem 0; }
+    .kpi { background:#1e293b; border-radius:10px; padding:.7rem .9rem; min-width:90px; flex:1; }
+    .kpi .num { font-size:1.45rem; font-weight:800; line-height:1; }
+    .kpi .lbl { font-size:.65rem; color:#94a3b8; margin-top:.15rem; }
+    .kpi.c-red .num { color:#ef4444; }
+    .kpi.c-ora .num { color:#f97316; }
+    .kpi.c-yel .num { color:#eab308; }
+    .kpi.c-grn .num { color:#22c55e; }
+    .kpi.c-blu .num { color:#3b82f6; }
+
+    /* Section */
+    .section { padding:.9rem 1.25rem; }
+    .sec-title { font-size:.72rem; font-weight:700; color:#64748b; text-transform:uppercase;
+                 letter-spacing:.06em; margin-bottom:.65rem; display:flex; align-items:center; gap:.4rem; }
+
+    /* Cards */
+    .card-dark { background:#1e293b; border-radius:10px; padding:.8rem 1rem; margin-bottom:.45rem; }
+    .card-dark.bl-C { border-left:4px solid #ef4444; }
+    .card-dark.bl-A { border-left:4px solid #f97316; }
+    .card-dark.bl-M { border-left:4px solid #eab308; }
+    .card-dark.bl-B { border-left:4px solid #3b82f6; }
+    .card-dark.bl-I { border-left:4px solid #475569; }
+
+    .dev-name { font-size:.8rem; font-weight:700; color:#e2e8f0; }
+    .dev-sub  { font-size:.72rem; color:#94a3b8; margin-top:.15rem; }
+    .dev-meta { font-size:.68rem; color:#64748b; margin-top:.25rem; }
+
+    /* Badge criticidade */
+    .bc { font-size:.62rem; padding:.18rem .45rem; border-radius:4px; font-weight:700; }
+    .bc-C { background:#7f1d1d; color:#fca5a5; }
+    .bc-A { background:#7c2d12; color:#fdba74; }
+    .bc-M { background:#713f12; color:#fde047; }
+    .bc-B { background:#1e3a5f; color:#93c5fd; }
+    .bc-I { background:#1e293b; color:#94a3b8; }
+
+    /* Score bar */
+    .score-wrap { margin-top:.35rem; }
+    .score-bar-bg { background:#0f172a; border-radius:4px; height:6px; overflow:hidden; }
+    .score-bar-fill { height:6px; border-radius:4px; }
+    .score-label { font-size:.65rem; color:#94a3b8; margin-top:.1rem; }
+
+    /* Alerta pill */
+    .alerta-pill { font-size:.6rem; background:#1d4ed8; color:#bfdbfe; border-radius:3px;
+                   padding:.1rem .35rem; margin-right:.2rem; }
+
+    /* Financeiro */
+    .fin-val { font-size:.85rem; font-weight:700; color:#22c55e; }
+    .fin-exp { font-size:.85rem; font-weight:700; color:#f97316; }
+    .rec-badge { font-size:.62rem; padding:.15rem .4rem; border-radius:4px; }
+    .rec-sim { background:#14532d; color:#86efac; }
+    .rec-nao { background:#1e293b; color:#94a3b8; }
+
+    /* Feature importance */
+    .feat-row { display:flex; align-items:center; gap:.5rem; margin-bottom:.3rem; }
+    .feat-name { font-size:.68rem; color:#94a3b8; width:180px; flex-shrink:0;
+                 white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .feat-bar-bg { flex:1; background:#0f172a; border-radius:3px; height:8px; overflow:hidden; }
+    .feat-bar-fill { height:8px; background:#6366f1; border-radius:3px; }
+    .feat-pct { font-size:.65rem; color:#64748b; width:36px; text-align:right; flex-shrink:0; }
+
+    /* Modelo chips */
+    .chip { display:inline-block; background:#1e293b; border:1px solid #334155; border-radius:6px;
+            padding:.2rem .55rem; font-size:.65rem; color:#94a3b8; margin:.15rem; }
+
+    .empty-msg { text-align:center; color:#475569; padding:1.5rem 0; font-size:.82rem; }
+    .footer-ts { font-size:.68rem; color:#475569; text-align:center; padding:.65rem; }
+    .sem-trat-dot { display:inline-block; width:6px; height:6px; border-radius:50%;
+                    background:#f97316; margin-right:.25rem; vertical-align:middle; }
   </style>
 </head>
 <body>
 
+<!-- Header -->
 <div class="header">
   <h1><i class="bi bi-shop me-2"></i>{{ loja_nome }}</h1>
-  <div class="sub">ID {{ loja_id }} &mdash; Alarmes ativos em tempo real</div>
+  <div class="sub">ID {{ loja_id }} &mdash; Link válido por 1 hora</div>
 </div>
 
+<!-- KPIs -->
 <div class="kpi-row">
-  <div class="kpi total">
-    <div class="num">{{ stats.total }}</div>
-    <div class="lbl">Total</div>
-  </div>
-  <div class="kpi critica">
+  <div class="kpi c-red">
     <div class="num">{{ stats.por_crit.C.count }}</div>
-    <div class="lbl">Crítica</div>
+    <div class="lbl">Críticos</div>
   </div>
-  <div class="kpi alta">
+  <div class="kpi c-ora">
     <div class="num">{{ stats.por_crit.A.count }}</div>
     <div class="lbl">Alta</div>
   </div>
-  <div class="kpi media">
-    <div class="num">{{ stats.por_crit.M.count }}</div>
-    <div class="lbl">Média</div>
+  <div class="kpi c-yel">
+    <div class="num">{{ stats.total }}</div>
+    <div class="lbl">Alarmes</div>
   </div>
-  <div class="kpi baixa">
-    <div class="num">{{ stats.sem_tratativa }}</div>
-    <div class="lbl">Sem Trat.</div>
+  {% if financeiro and financeiro.totais and financeiro.totais.exposicao_diaria %}
+  <div class="kpi c-ora">
+    <div class="num">R${{ "{:,.0f}".format(financeiro.totais.exposicao_diaria).replace(",",".") }}</div>
+    <div class="lbl">Exp./dia</div>
   </div>
+  <div class="kpi c-grn">
+    <div class="num">R${{ "{:,.0f}".format(financeiro.totais.economia_diaria).replace(",",".") }}</div>
+    <div class="lbl">Econ./dia</div>
+  </div>
+  {% endif %}
+  {% if saude %}
+  <div class="kpi c-blu">
+    <div class="num">{{ saude.score_medio | round(1) }}</div>
+    <div class="lbl">Score ML</div>
+  </div>
+  {% endif %}
 </div>
 
-{% if analise %}
-<div class="section">
-  <div class="section-title">Análise Comportamental</div>
-  {% for d in analise %}
-  <div class="risco-card nivel-{{ d.risco_nivel }}">
-    <div class="d-flex justify-content-between align-items-start">
-      <span class="risco-nm">{{ d.risco_icon }} {{ d.dispositivoNm }}</span>
-      <span class="badge-crit badge-risco-{{ d.risco_nivel }}">{{ d.risco_label }}</span>
+<!-- Análise de Risco -->
+<div class="section" style="margin-top:.75rem;">
+  <div class="sec-title"><i class="bi bi-cpu"></i> Análise de Risco — ML</div>
+  {% if risco %}
+    {% for d in risco %}
+    {% set score_pct = (d.risk_score * 100) | round(1) %}
+    {% set bar_color = "#ef4444" if score_pct >= 60 else ("#f97316" if score_pct >= 40 else "#22c55e") %}
+    <div class="card-dark bl-{{ d.criticidade }}">
+      <div class="d-flex justify-content-between align-items-start">
+        <span class="dev-name">{{ d.dispositivo_nome }}</span>
+        <span class="bc bc-{{ d.criticidade }}">{{ d.crit_label }}</span>
+      </div>
+      <div class="dev-sub">
+        Temp: <strong>{{ d.temp_atual }}°C</strong>
+        &nbsp;|&nbsp; Erro setpoint: <strong>{{ d.temp_erro }}°C</strong>
+        {% if d.degelo_fracao %}&nbsp;|&nbsp; Degelo: {{ d.degelo_fracao }}%{% endif %}
+      </div>
+      <div class="score-wrap">
+        <div class="score-bar-bg">
+          <div class="score-bar-fill" style="width:{{ score_pct }}%; background:{{ bar_color }};"></div>
+        </div>
+        <div class="score-label">Score ML: {{ score_pct }}%
+          {% if d.alertas %}
+            &nbsp;{% for alerta in d.alertas %}<span class="alerta-pill">{{ alerta }}</span>{% endfor %}
+          {% endif %}
+        </div>
+      </div>
+      <div class="dev-meta">
+        {% if d.sem_tratativa %}<span class="sem-trat-dot"></span>Sem tratativa &mdash; {% endif %}
+        {% if d.tempo %}{{ d.tempo }}{% endif %}
+        {% if d.alarme_desc %} &mdash; {{ d.alarme_desc }}{% endif %}
+      </div>
     </div>
-    {% if d.risco_motivos %}
-      {% for m in d.risco_motivos %}
-      <div class="risco-motivo"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ m }}</div>
-      {% endfor %}
-    {% else %}
-      <div class="risco-motivo"><i class="bi bi-check-circle-fill me-1" style="color:#22c55e"></i>Comportamento dentro do esperado</div>
-    {% endif %}
+    {% endfor %}
+  {% else %}
+    <div class="empty-msg"><i class="bi bi-check-circle-fill text-success"></i><br>Nenhuma análise de risco disponível.</div>
+  {% endif %}
+</div>
+
+<!-- Impacto Financeiro -->
+{% if financeiro and financeiro.devices %}
+<div class="section">
+  <div class="sec-title"><i class="bi bi-currency-dollar"></i> Impacto Financeiro</div>
+  <div class="card-dark mb-3">
+    <div class="row g-2 text-center">
+      <div class="col-4">
+        <div class="fin-exp">R${{ "{:,.0f}".format(financeiro.totais.exposicao_diaria).replace(",",".") }}</div>
+        <div style="font-size:.65rem;color:#94a3b8;">Exposição/dia</div>
+      </div>
+      <div class="col-4">
+        <div class="fin-val">R${{ "{:,.0f}".format(financeiro.totais.economia_diaria).replace(",",".") }}</div>
+        <div style="font-size:.65rem;color:#94a3b8;">Economia/dia</div>
+      </div>
+      <div class="col-4">
+        <div style="font-size:.85rem;font-weight:700;">R${{ "{:,.0f}".format(financeiro.totais.custo_intervencao).replace(",",".") }}</div>
+        <div style="font-size:.65rem;color:#94a3b8;">Intervenções</div>
+      </div>
+    </div>
+  </div>
+  {% for d in financeiro.devices %}
+  <div class="card-dark bl-{{ d.criticidade }}">
+    <div class="d-flex justify-content-between align-items-start">
+      <span class="dev-name">{{ d.dispositivo_nome }}</span>
+      <span class="rec-badge {{ 'rec-sim' if d.recomendacao == 'Recomendado' else 'rec-nao' }}">{{ d.recomendacao }}</span>
+    </div>
+    <div class="dev-sub">
+      Exp: <span class="fin-exp">R${{ "{:,.0f}".format(d.exposicao_diaria).replace(",",".") }}/dia</span>
+      &nbsp;|&nbsp; Econ: <span class="fin-val">R${{ "{:,.0f}".format(d.economia_diaria).replace(",",".") }}/dia</span>
+      &nbsp;|&nbsp; ROI: <strong>{{ d.roi }}x</strong>
+    </div>
+    <div class="dev-meta">Score ML: {{ (d.risk_score * 100) | round(1) }}% &mdash; Intervenção: R${{ d.custo_intervencao }}</div>
   </div>
   {% endfor %}
 </div>
 {% endif %}
 
+<!-- Alarmes Ativos -->
 <div class="section">
-  <div class="section-title">Alarmes ativos</div>
-
+  <div class="sec-title"><i class="bi bi-bell"></i> Alarmes Ativos</div>
   {% if alarmes %}
     {% for a in alarmes %}
-    <div class="alarm-card crit-{{ a.criticidade }}">
+    <div class="card-dark bl-{{ a.criticidade }}">
       <div class="d-flex justify-content-between align-items-start">
-        <span class="alarm-tag">{{ a.tag }}</span>
-        <span class="badge-crit badge-{{ a.criticidade }}">{{ a.crit_label }}</span>
+        <span class="dev-name">{{ a.tag }}</span>
+        <span class="bc bc-{{ a.criticidade }}">{{ a.crit_label }}</span>
       </div>
-      <div class="alarm-desc">{{ a.alarme_desc }}</div>
-      <div class="alarm-meta">
+      <div class="dev-sub">{{ a.alarme_desc }}</div>
+      <div class="dev-meta">
         {% if a.sem_tratativa %}<span class="sem-trat-dot"></span>Sem tratativa &mdash; {% endif %}
         {% if a.tempo %}{{ a.tempo }}{% endif %}
       </div>
     </div>
     {% endfor %}
   {% else %}
-    <div class="no-alarms">
-      <i class="bi bi-check-circle-fill text-success" style="font-size:2rem"></i>
-      <p class="mt-2">Nenhum alarme ativo para esta unidade.</p>
-    </div>
+    <div class="empty-msg"><i class="bi bi-check-circle-fill text-success"></i><br>Nenhum alarme ativo.</div>
   {% endif %}
 </div>
 
+<!-- Modelo Preditivo -->
+{% if modelo and modelo.feature_importance %}
+<div class="section">
+  <div class="sec-title"><i class="bi bi-bar-chart"></i> Modelo Preditivo</div>
+  <div class="card-dark">
+    {% if modelo.modelo_info %}
+      {% for nome, info in modelo.modelo_info.items() %}
+        {% if info.carregado %}
+        <span class="chip">{{ info.tipo }}{% if info.kernel %} · {{ info.kernel }}{% endif %}{% if info.n_estimators %} · {{ info.n_estimators }} árvores{% endif %}</span>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+    {% if modelo.n_devices_scored %}
+    <span class="chip">{{ modelo.n_devices_scored }} dispositivos avaliados</span>
+    {% endif %}
+    <div style="margin-top:.75rem;">
+      {% set max_imp = modelo.feature_importance[0].importancia if modelo.feature_importance else 1 %}
+      {% for f in modelo.feature_importance %}
+      <div class="feat-row">
+        <span class="feat-name" title="{{ f.feature }}">{{ f.feature }}</span>
+        <div class="feat-bar-bg">
+          <div class="feat-bar-fill" style="width:{{ ((f.importancia / max_imp) * 100) | round(0) | int }}%;"></div>
+        </div>
+        <span class="feat-pct">{{ (f.importancia * 100) | round(1) }}%</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <div class="footer-ts">
-  <i class="bi bi-clock me-1"></i>Atualizado em {{ atualizado }} &mdash; Link válido por 1 hora
+  <i class="bi bi-clock me-1"></i>Atualizado em {{ atualizado }}
 </div>
 
 </body>

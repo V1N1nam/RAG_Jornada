@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 from app.services.chat_flow_service import handle_chat_message
 from app.services.whatsapp_service import send_message
-from app.services.eletrofio_service import buscar_alarmes_loja, analisar_risco_loja
+from app.services.eletrofio_service import buscar_alarmes_loja, buscar_dashboard_loja
 from app.config import DASH_SECRET
 
 load_dotenv()
@@ -107,15 +107,18 @@ def dash_loja():
     except (BadSignature, KeyError, Exception):
         return "<h2>Link inválido.</h2>", 403
 
-    dados = buscar_alarmes_loja(loja_id)
-    analise = analisar_risco_loja(loja_id)
+    dashboard = buscar_dashboard_loja(loja_id)
+    alarmes   = buscar_alarmes_loja(loja_id)
     return render_template(
         "loja_dash.html",
-        loja_id=dados["loja_id"],
-        loja_nome=dados["loja_nome"],
-        stats=dados["stats"],
-        alarmes=dados["alarmes"],
-        analise=analise,
+        loja_id=dashboard["loja_id"],
+        loja_nome=dashboard["loja_nome"],
+        risco=dashboard["risco"],
+        financeiro=dashboard["financeiro"],
+        saude=dashboard["saude"],
+        modelo=dashboard["modelo"],
+        stats=alarmes["stats"],
+        alarmes=alarmes["alarmes"],
         atualizado=datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
     )
 
