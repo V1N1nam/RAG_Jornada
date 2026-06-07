@@ -1,6 +1,11 @@
 langchain
 langchain-openai
 langchain-community
-faiss-cpu
 python-dotenv
 flask
+itsdangerous
+psycopg[binary]
+pgvector
+gunicorn
+requests
+numpy

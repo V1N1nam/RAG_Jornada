@@ -1,0 +1,48 @@
+services:
+  evolution-redis:
+    image: redis:6.2-alpine
+    container_name: evolution_redis
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  evolution-postgres:
+    image: postgres:15-alpine
+    container_name: evolution_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: evolution
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: evolution123
+    volumes:
+      - evolution_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evolution"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  evolution-api:
+    build:
+      context: ./evo-src
+      dockerfile: Dockerfile
+    container_name: evolution_api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - evolution_instances:/evolution/instances
+    depends_on:
+      evolution-postgres:
+        condition: service_healthy
+      evolution-redis:
+        condition: service_healthy
+    env_file:
+      - evolution.env
+
+volumes:
+  evolution_pg:
+  evolution_instances:
