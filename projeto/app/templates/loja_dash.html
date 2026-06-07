@@ -3,260 +3,450 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard — {{ loja_nome }}</title>
+  <title>{{ loja_nome }} — EletroFrio ML</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet" />
-  <style>
-    body { background:#0f172a; color:#e2e8f0; font-family:'Inter',sans-serif; }
-
-    /* Header */
-    .header { background:#1e293b; padding:1rem 1.25rem; border-bottom:1px solid #334155; }
-    .header h1 { font-size:1.05rem; font-weight:700; margin:0; }
-    .header .sub { font-size:.72rem; color:#94a3b8; }
-
-    /* KPI strip */
-    .kpi-row { display:flex; gap:.6rem; overflow-x:auto; padding:1rem 1.25rem 0; }
-    .kpi { background:#1e293b; border-radius:10px; padding:.7rem .9rem; min-width:90px; flex:1; }
-    .kpi .num { font-size:1.45rem; font-weight:800; line-height:1; }
-    .kpi .lbl { font-size:.65rem; color:#94a3b8; margin-top:.15rem; }
-    .kpi.c-red .num { color:#ef4444; }
-    .kpi.c-ora .num { color:#f97316; }
-    .kpi.c-yel .num { color:#eab308; }
-    .kpi.c-grn .num { color:#22c55e; }
-    .kpi.c-blu .num { color:#3b82f6; }
-
-    /* Section */
-    .section { padding:.9rem 1.25rem; }
-    .sec-title { font-size:.72rem; font-weight:700; color:#64748b; text-transform:uppercase;
-                 letter-spacing:.06em; margin-bottom:.65rem; display:flex; align-items:center; gap:.4rem; }
-
-    /* Cards */
-    .card-dark { background:#1e293b; border-radius:10px; padding:.8rem 1rem; margin-bottom:.45rem; }
-    .card-dark.bl-C { border-left:4px solid #ef4444; }
-    .card-dark.bl-A { border-left:4px solid #f97316; }
-    .card-dark.bl-M { border-left:4px solid #eab308; }
-    .card-dark.bl-B { border-left:4px solid #3b82f6; }
-    .card-dark.bl-I { border-left:4px solid #475569; }
-
-    .dev-name { font-size:.8rem; font-weight:700; color:#e2e8f0; }
-    .dev-sub  { font-size:.72rem; color:#94a3b8; margin-top:.15rem; }
-    .dev-meta { font-size:.68rem; color:#64748b; margin-top:.25rem; }
-
-    /* Badge criticidade */
-    .bc { font-size:.62rem; padding:.18rem .45rem; border-radius:4px; font-weight:700; }
-    .bc-C { background:#7f1d1d; color:#fca5a5; }
-    .bc-A { background:#7c2d12; color:#fdba74; }
-    .bc-M { background:#713f12; color:#fde047; }
-    .bc-B { background:#1e3a5f; color:#93c5fd; }
-    .bc-I { background:#1e293b; color:#94a3b8; }
-
-    /* Score bar */
-    .score-wrap { margin-top:.35rem; }
-    .score-bar-bg { background:#0f172a; border-radius:4px; height:6px; overflow:hidden; }
-    .score-bar-fill { height:6px; border-radius:4px; }
-    .score-label { font-size:.65rem; color:#94a3b8; margin-top:.1rem; }
-
-    /* Alerta pill */
-    .alerta-pill { font-size:.6rem; background:#1d4ed8; color:#bfdbfe; border-radius:3px;
-                   padding:.1rem .35rem; margin-right:.2rem; }
-
-    /* Financeiro */
-    .fin-val { font-size:.85rem; font-weight:700; color:#22c55e; }
-    .fin-exp { font-size:.85rem; font-weight:700; color:#f97316; }
-    .rec-badge { font-size:.62rem; padding:.15rem .4rem; border-radius:4px; }
-    .rec-sim { background:#14532d; color:#86efac; }
-    .rec-nao { background:#1e293b; color:#94a3b8; }
-
-    /* Feature importance */
-    .feat-row { display:flex; align-items:center; gap:.5rem; margin-bottom:.3rem; }
-    .feat-name { font-size:.68rem; color:#94a3b8; width:180px; flex-shrink:0;
-                 white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .feat-bar-bg { flex:1; background:#0f172a; border-radius:3px; height:8px; overflow:hidden; }
-    .feat-bar-fill { height:8px; background:#6366f1; border-radius:3px; }
-    .feat-pct { font-size:.65rem; color:#64748b; width:36px; text-align:right; flex-shrink:0; }
-
-    /* Modelo chips */
-    .chip { display:inline-block; background:#1e293b; border:1px solid #334155; border-radius:6px;
-            padding:.2rem .55rem; font-size:.65rem; color:#94a3b8; margin:.15rem; }
-
-    .empty-msg { text-align:center; color:#475569; padding:1.5rem 0; font-size:.82rem; }
-    .footer-ts { font-size:.68rem; color:#475569; text-align:center; padding:.65rem; }
-    .sem-trat-dot { display:inline-block; width:6px; height:6px; border-radius:50%;
-                    background:#f97316; margin-right:.25rem; vertical-align:middle; }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
-<!-- Header -->
-<div class="header">
-  <h1><i class="bi bi-shop me-2"></i>{{ loja_nome }}</h1>
-  <div class="sub">ID {{ loja_id }} &mdash; Link válido por 1 hora</div>
-</div>
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon"><i class="bi bi-snow2"></i></div>
+    <div class="sidebar-logo-text">
+      <span class="sidebar-brand">EletroFrio</span>
+      <span class="sidebar-sub">ML Dashboard</span>
+    </div>
+    <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" onclick="toggleSidebar()" title="Recolher menu">
+      <i class="bi bi-chevron-left" id="sidebarChevron"></i>
+    </button>
+  </div>
 
-<!-- KPIs -->
-<div class="kpi-row">
-  <div class="kpi c-red">
-    <div class="num">{{ stats.por_crit.C.count }}</div>
-    <div class="lbl">Críticos</div>
-  </div>
-  <div class="kpi c-ora">
-    <div class="num">{{ stats.por_crit.A.count }}</div>
-    <div class="lbl">Alta</div>
-  </div>
-  <div class="kpi c-yel">
-    <div class="num">{{ stats.total }}</div>
-    <div class="lbl">Alarmes</div>
-  </div>
-  {% if financeiro and financeiro.totais and financeiro.totais.exposicao_diaria %}
-  <div class="kpi c-ora">
-    <div class="num">R${{ "{:,.0f}".format(financeiro.totais.exposicao_diaria).replace(",",".") }}</div>
-    <div class="lbl">Exp./dia</div>
-  </div>
-  <div class="kpi c-grn">
-    <div class="num">R${{ "{:,.0f}".format(financeiro.totais.economia_diaria).replace(",",".") }}</div>
-    <div class="lbl">Econ./dia</div>
-  </div>
-  {% endif %}
-  {% if saude %}
-  <div class="kpi c-blu">
-    <div class="num">{{ saude.score_medio | round(1) }}</div>
-    <div class="lbl">Score ML</div>
-  </div>
-  {% endif %}
-</div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">Esta Unidade</div>
+    <a href="#section-kpis"       class="sidebar-link active" title="Visão Geral"><i class="bi bi-grid-1x2-fill"></i><span>Visão Geral</span></a>
+    <a href="#section-risco"      class="sidebar-link" title="Análise de Risco"><i class="bi bi-shield-exclamation"></i><span>Risco ML</span></a>
+    <a href="#section-financeiro" class="sidebar-link" title="Impacto Financeiro"><i class="bi bi-currency-exchange"></i><span>Financeiro</span></a>
+    <a href="#section-alarmes"    class="sidebar-link" title="Alarmes"><i class="bi bi-bell-fill"></i><span>Alarmes</span></a>
+    <a href="#section-modelo"     class="sidebar-link" title="Modelo Preditivo"><i class="bi bi-bar-chart-fill"></i><span>Modelo</span></a>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section-label">Frota Geral</div>
+    <a href="https://eletrofio-ml.onrender.com" target="_blank" class="sidebar-link" title="Dashboard completo">
+      <i class="bi bi-box-arrow-up-right"></i><span>Dashboard Geral</span>
+    </a>
+  </nav>
 
-<!-- Análise de Risco -->
-<div class="section" style="margin-top:.75rem;">
-  <div class="sec-title"><i class="bi bi-cpu"></i> Análise de Risco — ML</div>
-  {% if risco %}
-    {% for d in risco %}
-    {% set score_pct = (d.risk_score * 100) | round(1) %}
-    {% set bar_color = "#ef4444" if score_pct >= 60 else ("#f97316" if score_pct >= 40 else "#22c55e") %}
-    <div class="card-dark bl-{{ d.criticidade }}">
-      <div class="d-flex justify-content-between align-items-start">
-        <span class="dev-name">{{ d.dispositivo_nome }}</span>
-        <span class="bc bc-{{ d.criticidade }}">{{ d.crit_label }}</span>
-      </div>
-      <div class="dev-sub">
-        Temp: <strong>{{ d.temp_atual }}°C</strong>
-        &nbsp;|&nbsp; Erro setpoint: <strong>{{ d.temp_erro }}°C</strong>
-        {% if d.degelo_fracao %}&nbsp;|&nbsp; Degelo: {{ d.degelo_fracao }}%{% endif %}
-      </div>
-      <div class="score-wrap">
-        <div class="score-bar-bg">
-          <div class="score-bar-fill" style="width:{{ score_pct }}%; background:{{ bar_color }};"></div>
+  <div class="sidebar-footer">
+    <span id="api-status-label"><i class="bi bi-circle-fill text-secondary" style="font-size:.55rem"></i> Verificando...</span>
+    <button class="sidebar-close-mobile" onclick="closeMobileSidebar()" title="Fechar">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+</aside>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
+<!-- Main -->
+<div class="main-wrapper">
+
+  <header class="topbar">
+    <button class="topbar-toggle" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
+    <div class="topbar-title">
+      <h1>{{ loja_nome }}</h1>
+      <span class="topbar-sub">Unidade {{ loja_id }} — Monitoramento Preditivo</span>
+    </div>
+    <div class="topbar-right">
+      <span class="topbar-ts"><i class="bi bi-clock me-1"></i>{{ atualizado }}</span>
+      <div class="topbar-avatar" title="Unidade">{{ loja_id }}</div>
+    </div>
+  </header>
+
+  <main class="content">
+
+    <!-- KPIs -->
+    <section id="section-kpis" class="mb-4 anim-fade-in-up">
+      <div class="kpi-grid">
+
+        <div class="kpi-card kpi-total">
+          <div class="kpi-card-top">
+            <span class="kpi-lbl">Total de Alarmes</span>
+            <div class="kpi-icon"><i class="bi bi-activity"></i></div>
+          </div>
+          <div class="kpi-num">{{ stats.total }}</div>
+          <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:100%"></div></div>
         </div>
-        <div class="score-label">Score ML: {{ score_pct }}%
-          {% if d.alertas %}
-            &nbsp;{% for alerta in d.alertas %}<span class="alerta-pill">{{ alerta }}</span>{% endfor %}
+
+        {% for k, v in stats.por_crit.items() %}
+        <div class="kpi-card kpi-crit-{{ k }}">
+          <div class="kpi-card-top">
+            <span class="kpi-lbl">{{ v.label }}</span>
+            <div class="kpi-icon">
+              {% if k == 'C' %}<i class="bi bi-lightning-fill"></i>
+              {% elif k == 'A' %}<i class="bi bi-exclamation-triangle-fill"></i>
+              {% elif k == 'M' %}<i class="bi bi-dash-circle-fill"></i>
+              {% elif k == 'B' %}<i class="bi bi-info-circle-fill"></i>
+              {% else %}<i class="bi bi-check-circle-fill"></i>{% endif %}
+            </div>
+          </div>
+          <div class="kpi-num">{{ v.count }}</div>
+          <div class="kpi-bar-track">
+            <div class="kpi-bar-fill" style="width:{{ (v.count / stats.total * 100) | round(1) if stats.total else 0 }}%"></div>
+          </div>
+        </div>
+        {% endfor %}
+
+        <div class="kpi-card kpi-sem-trat">
+          <div class="kpi-card-top">
+            <span class="kpi-lbl">Sem Tratativa</span>
+            <div class="kpi-icon"><i class="bi bi-hourglass-split"></i></div>
+          </div>
+          <div class="kpi-num">{{ stats.sem_tratativa }}</div>
+          <div class="kpi-bar-track">
+            <div class="kpi-bar-fill" style="width:{{ (stats.sem_tratativa / stats.total * 100) | round(1) if stats.total else 0 }}%"></div>
+          </div>
+        </div>
+
+        {% if financeiro and financeiro.totais and financeiro.totais.exposicao_diaria %}
+        <div class="kpi-card" style="border-top:3px solid #f97316">
+          <div class="kpi-card-top">
+            <span class="kpi-lbl">Exposição / Dia</span>
+            <div class="kpi-icon" style="background:rgba(249,115,22,.15);color:#f97316"><i class="bi bi-currency-dollar"></i></div>
+          </div>
+          <div class="kpi-num" style="color:#f97316;font-size:1.3rem">R${{ "{:,.0f}".format(financeiro.totais.exposicao_diaria).replace(",",".") }}</div>
+          <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:100%;background:#f97316"></div></div>
+        </div>
+        <div class="kpi-card" style="border-top:3px solid #22c55e">
+          <div class="kpi-card-top">
+            <span class="kpi-lbl">Economia / Dia</span>
+            <div class="kpi-icon" style="background:rgba(34,197,94,.15);color:#22c55e"><i class="bi bi-graph-down-arrow"></i></div>
+          </div>
+          <div class="kpi-num" style="color:#22c55e;font-size:1.3rem">R${{ "{:,.0f}".format(financeiro.totais.economia_diaria).replace(",",".") }}</div>
+          <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:100%;background:#22c55e"></div></div>
+        </div>
+        {% endif %}
+
+        {% if saude %}
+        <div class="kpi-card" style="border-top:3px solid #6366f1">
+          <div class="kpi-card-top">
+            <span class="kpi-lbl">Score ML Médio</span>
+            <div class="kpi-icon" style="background:rgba(99,102,241,.15);color:#6366f1"><i class="bi bi-cpu-fill"></i></div>
+          </div>
+          <div class="kpi-num" style="color:#6366f1">{{ saude.score_medio | round(1) }}</div>
+          <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:{{ saude.score_medio | round(0) | int }}%;background:#6366f1"></div></div>
+        </div>
+        {% endif %}
+
+      </div>
+    </section>
+
+    <!-- Gráfico + Risco ML -->
+    <section id="section-risco" class="row g-3 mb-4 anim-fade-in-up" style="animation-delay:.1s">
+      <div class="col-12 col-lg-4">
+        <div class="card-panel">
+          <div class="panel-header">
+            <span class="panel-title">Alarmes por Criticidade</span>
+            <span class="panel-badge">esta unidade</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chartCrit"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-8">
+        <div class="card-panel h-100">
+          <div class="panel-header">
+            <div class="d-flex align-items-center gap-2">
+              <span class="panel-title">Análise de Risco — ML</span>
+              <span class="panel-count">{{ risco | length }}</span>
+            </div>
+            <span class="panel-badge">dashboard/risco</span>
+          </div>
+          {% if risco %}
+          <div class="table-responsive">
+            <table class="dash-table">
+              <thead>
+                <tr>
+                  <th>Criticidade</th>
+                  <th>Dispositivo</th>
+                  <th class="text-center">Temp Atual</th>
+                  <th class="text-center">Erro Setpoint</th>
+                  <th class="text-center">Score ML</th>
+                  <th class="text-center">Alertas</th>
+                  <th class="text-center">Tratativa</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for d in risco %}
+                {% set pct = (d.risk_score * 100) | round(1) %}
+                {% set risk_cls = "risk-high" if pct >= 60 else ("risk-mid" if pct >= 40 else "risk-low") %}
+                {% set risk_lbl = "Alto" if pct >= 60 else ("Médio" if pct >= 40 else "Baixo") %}
+                <tr class="row-crit-{{ d.criticidade }}">
+                  <td><span class="crit-badge crit-{{ d.criticidade }}">{{ d.criticidade }} · {{ d.crit_label }}</span></td>
+                  <td class="fw-medium">{{ d.dispositivo_nome }}</td>
+                  <td class="text-center"><span class="temp-val">{{ d.temp_atual }}°C</span></td>
+                  <td class="text-center"><span class="temp-val {{ 'temp-alta' if d.temp_erro > 5 else '' }}">{{ d.temp_erro }}°C</span></td>
+                  <td class="text-center"><span class="risk-badge {{ risk_cls }}">{{ pct }}% · {{ risk_lbl }}</span></td>
+                  <td class="text-center text-sm">
+                    {% if d.alertas %}
+                      {% for a in d.alertas %}<span class="pill pill-warning">{{ a }}</span> {% endfor %}
+                    {% else %}<span class="text-muted">—</span>{% endif %}
+                  </td>
+                  <td class="text-center">
+                    {% if d.sem_tratativa %}<span class="pill pill-danger">Pendente</span>
+                    {% else %}<span class="status-ok"><i class="bi bi-check-lg"></i></span>{% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="text-center text-muted py-4">Nenhuma análise de risco disponível para esta unidade.</div>
           {% endif %}
         </div>
       </div>
-      <div class="dev-meta">
-        {% if d.sem_tratativa %}<span class="sem-trat-dot"></span>Sem tratativa &mdash; {% endif %}
-        {% if d.tempo %}{{ d.tempo }}{% endif %}
-        {% if d.alarme_desc %} &mdash; {{ d.alarme_desc }}{% endif %}
-      </div>
-    </div>
-    {% endfor %}
-  {% else %}
-    <div class="empty-msg"><i class="bi bi-check-circle-fill text-success"></i><br>Nenhuma análise de risco disponível.</div>
-  {% endif %}
-</div>
+    </section>
 
-<!-- Impacto Financeiro -->
-{% if financeiro and financeiro.devices %}
-<div class="section">
-  <div class="sec-title"><i class="bi bi-currency-dollar"></i> Impacto Financeiro</div>
-  <div class="card-dark mb-3">
-    <div class="row g-2 text-center">
-      <div class="col-4">
-        <div class="fin-exp">R${{ "{:,.0f}".format(financeiro.totais.exposicao_diaria).replace(",",".") }}</div>
-        <div style="font-size:.65rem;color:#94a3b8;">Exposição/dia</div>
-      </div>
-      <div class="col-4">
-        <div class="fin-val">R${{ "{:,.0f}".format(financeiro.totais.economia_diaria).replace(",",".") }}</div>
-        <div style="font-size:.65rem;color:#94a3b8;">Economia/dia</div>
-      </div>
-      <div class="col-4">
-        <div style="font-size:.85rem;font-weight:700;">R${{ "{:,.0f}".format(financeiro.totais.custo_intervencao).replace(",",".") }}</div>
-        <div style="font-size:.65rem;color:#94a3b8;">Intervenções</div>
-      </div>
-    </div>
-  </div>
-  {% for d in financeiro.devices %}
-  <div class="card-dark bl-{{ d.criticidade }}">
-    <div class="d-flex justify-content-between align-items-start">
-      <span class="dev-name">{{ d.dispositivo_nome }}</span>
-      <span class="rec-badge {{ 'rec-sim' if d.recomendacao == 'Recomendado' else 'rec-nao' }}">{{ d.recomendacao }}</span>
-    </div>
-    <div class="dev-sub">
-      Exp: <span class="fin-exp">R${{ "{:,.0f}".format(d.exposicao_diaria).replace(",",".") }}/dia</span>
-      &nbsp;|&nbsp; Econ: <span class="fin-val">R${{ "{:,.0f}".format(d.economia_diaria).replace(",",".") }}/dia</span>
-      &nbsp;|&nbsp; ROI: <strong>{{ d.roi }}x</strong>
-    </div>
-    <div class="dev-meta">Score ML: {{ (d.risk_score * 100) | round(1) }}% &mdash; Intervenção: R${{ d.custo_intervencao }}</div>
-  </div>
-  {% endfor %}
-</div>
-{% endif %}
-
-<!-- Alarmes Ativos -->
-<div class="section">
-  <div class="sec-title"><i class="bi bi-bell"></i> Alarmes Ativos</div>
-  {% if alarmes %}
-    {% for a in alarmes %}
-    <div class="card-dark bl-{{ a.criticidade }}">
-      <div class="d-flex justify-content-between align-items-start">
-        <span class="dev-name">{{ a.tag }}</span>
-        <span class="bc bc-{{ a.criticidade }}">{{ a.crit_label }}</span>
-      </div>
-      <div class="dev-sub">{{ a.alarme_desc }}</div>
-      <div class="dev-meta">
-        {% if a.sem_tratativa %}<span class="sem-trat-dot"></span>Sem tratativa &mdash; {% endif %}
-        {% if a.tempo %}{{ a.tempo }}{% endif %}
-      </div>
-    </div>
-    {% endfor %}
-  {% else %}
-    <div class="empty-msg"><i class="bi bi-check-circle-fill text-success"></i><br>Nenhum alarme ativo.</div>
-  {% endif %}
-</div>
-
-<!-- Modelo Preditivo -->
-{% if modelo and modelo.feature_importance %}
-<div class="section">
-  <div class="sec-title"><i class="bi bi-bar-chart"></i> Modelo Preditivo</div>
-  <div class="card-dark">
-    {% if modelo.modelo_info %}
-      {% for nome, info in modelo.modelo_info.items() %}
-        {% if info.carregado %}
-        <span class="chip">{{ info.tipo }}{% if info.kernel %} · {{ info.kernel }}{% endif %}{% if info.n_estimators %} · {{ info.n_estimators }} árvores{% endif %}</span>
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-    {% if modelo.n_devices_scored %}
-    <span class="chip">{{ modelo.n_devices_scored }} dispositivos avaliados</span>
-    {% endif %}
-    <div style="margin-top:.75rem;">
-      {% set max_imp = modelo.feature_importance[0].importancia if modelo.feature_importance else 1 %}
-      {% for f in modelo.feature_importance %}
-      <div class="feat-row">
-        <span class="feat-name" title="{{ f.feature }}">{{ f.feature }}</span>
-        <div class="feat-bar-bg">
-          <div class="feat-bar-fill" style="width:{{ ((f.importancia / max_imp) * 100) | round(0) | int }}%;"></div>
+    <!-- Impacto Financeiro -->
+    {% if financeiro and financeiro.devices %}
+    <section id="section-financeiro" class="mb-4 anim-fade-in-up" style="animation-delay:.15s">
+      <div class="card-panel">
+        <div class="panel-header">
+          <div class="d-flex align-items-center gap-2">
+            <span class="panel-title">Impacto Financeiro</span>
+            <span class="panel-count">{{ financeiro.devices | length }}</span>
+          </div>
+          <span class="panel-badge">dashboard/financeiro</span>
         </div>
-        <span class="feat-pct">{{ (f.importancia * 100) | round(1) }}%</span>
+        <div class="table-responsive">
+          <table class="dash-table">
+            <thead>
+              <tr>
+                <th>Criticidade</th>
+                <th>Dispositivo</th>
+                <th class="text-center">Exp / Hora</th>
+                <th class="text-center">Exp / Dia</th>
+                <th class="text-center">Economia / Dia</th>
+                <th class="text-center">ROI</th>
+                <th class="text-center">Recomendação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in financeiro.devices %}
+              <tr class="row-crit-{{ d.criticidade }}">
+                <td><span class="crit-badge crit-{{ d.criticidade }}">{{ d.criticidade }} · {{ d.crit_label }}</span></td>
+                <td class="fw-medium">{{ d.dispositivo_nome }}</td>
+                <td class="text-center text-sm" style="color:#f97316">R${{ "{:,.0f}".format(d.exposicao_hora).replace(",",".") }}</td>
+                <td class="text-center fw-semibold" style="color:#f97316">R${{ "{:,.0f}".format(d.exposicao_diaria).replace(",",".") }}</td>
+                <td class="text-center fw-semibold" style="color:#22c55e">R${{ "{:,.0f}".format(d.economia_diaria).replace(",",".") }}</td>
+                <td class="text-center"><span class="pill pill-info">{{ d.roi }}x</span></td>
+                <td class="text-center">
+                  {% if d.recomendacao == 'Recomendado' %}
+                  <span class="pill pill-success">{{ d.recomendacao }}</span>
+                  {% else %}
+                  <span class="text-muted text-sm">{{ d.recomendacao }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr style="border-top:2px solid #334155">
+                <td colspan="2" class="fw-semibold text-sm" style="color:#94a3b8">TOTAL</td>
+                <td></td>
+                <td class="text-center fw-bold" style="color:#f97316">R${{ "{:,.0f}".format(financeiro.totais.exposicao_diaria).replace(",",".") }}</td>
+                <td class="text-center fw-bold" style="color:#22c55e">R${{ "{:,.0f}".format(financeiro.totais.economia_diaria).replace(",",".") }}</td>
+                <td></td>
+                <td class="text-center text-sm" style="color:#94a3b8">R${{ "{:,.0f}".format(financeiro.totais.custo_intervencao).replace(",",".") }} p/ intervenções</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </div>
-      {% endfor %}
+    </section>
+    {% endif %}
+
+    <!-- Alarmes Ativos -->
+    <section id="section-alarmes" class="mb-4 anim-fade-in-up" style="animation-delay:.2s">
+      <div class="card-panel">
+        <div class="panel-header">
+          <div class="d-flex align-items-center gap-2">
+            <span class="panel-title">Alarmes Ativos</span>
+            <span class="panel-count" id="alarmes-count">{{ stats.total }}</span>
+          </div>
+          <span class="panel-badge">alarmes + telemetria</span>
+        </div>
+        <div class="table-responsive">
+          <table class="dash-table">
+            <thead>
+              <tr>
+                <th>Criticidade</th>
+                <th>Tag</th>
+                <th>Alarme</th>
+                <th>Tempo</th>
+                <th class="text-center">Risco</th>
+                <th class="text-center">Anomalia</th>
+                <th class="text-center">Temperatura</th>
+                <th class="text-center">Tratativa</th>
+                <th class="text-center">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="alarmes-tbody"></tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span class="table-info" id="alarmes-info"></span>
+          <nav><ul class="dash-pagination" id="alarmes-pagination"></ul></nav>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modelo Preditivo -->
+    {% if modelo and modelo.feature_importance %}
+    <section id="section-modelo" class="mb-5 anim-fade-in-up" style="animation-delay:.25s">
+      <div class="card-panel">
+        <div class="panel-header">
+          <span class="panel-title">Modelo Preditivo</span>
+          <span class="panel-badge">dashboard/modelo</span>
+        </div>
+        <div class="row g-3">
+          <!-- Feature Importance -->
+          <div class="col-12 col-lg-7">
+            <p class="text-muted" style="font-size:.78rem;margin-bottom:.75rem">
+              Top features por importância no Random Forest
+            </p>
+            {% set max_imp = modelo.feature_importance[0].importancia if modelo.feature_importance else 1 %}
+            {% for f in modelo.feature_importance %}
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span style="font-size:.72rem;color:#94a3b8;width:190px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="{{ f.feature }}">{{ f.feature }}</span>
+              <div style="flex:1;background:#0f172a;border-radius:3px;height:8px;overflow:hidden">
+                <div style="height:8px;background:#6366f1;border-radius:3px;width:{{ ((f.importancia / max_imp) * 100) | round(0) | int }}%"></div>
+              </div>
+              <span style="font-size:.68rem;color:#64748b;width:38px;text-align:right;flex-shrink:0">{{ (f.importancia * 100) | round(1) }}%</span>
+            </div>
+            {% endfor %}
+          </div>
+          <!-- Modelo Info -->
+          <div class="col-12 col-lg-5">
+            {% if modelo.modelo_info %}
+            <p class="text-muted" style="font-size:.78rem;margin-bottom:.75rem">Modelos carregados</p>
+            <div class="d-flex flex-column gap-2">
+              {% for nome, info in modelo.modelo_info.items() %}
+              {% if info.carregado %}
+              <div class="card-panel" style="padding:.65rem .9rem;margin:0">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-cpu" style="color:#6366f1"></i>
+                  <strong style="font-size:.8rem">{{ info.tipo }}</strong>
+                </div>
+                <div style="font-size:.7rem;color:#94a3b8;margin-top:.25rem">
+                  {% if info.kernel %}Kernel: {{ info.kernel }}{% endif %}
+                  {% if info.nu %} · nu={{ info.nu }}{% endif %}
+                  {% if info.n_estimators %} · {{ info.n_estimators }} árvores{% endif %}
+                  {% if info.n_features %} · {{ info.n_features }} features{% endif %}
+                  {% if info.n_support %} · {{ info.n_support }} suporte{% endif %}
+                </div>
+              </div>
+              {% endif %}
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% if modelo.n_devices_scored %}
+            <div class="mt-3" style="font-size:.75rem;color:#94a3b8">
+              <i class="bi bi-bar-chart-fill me-1" style="color:#6366f1"></i>
+              {{ modelo.n_devices_scored }} dispositivos avaliados na frota
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+    <p class="footer-ts">
+      <i class="bi bi-cpu me-1"></i>EletroFrio ML · Unidade {{ loja_id }} · {{ atualizado }}
+    </p>
+
+  </main>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Modal Chamado -->
+<div class="modal fade" id="modalChamado" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content modal-custom">
+      <div class="modal-header modal-header-custom">
+        <h5 class="modal-title d-flex align-items-center gap-2">
+          <i class="bi bi-tools"></i>Abrir Chamado Técnico
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body px-4 py-3">
+        <div class="modal-device-card mb-3" id="mc-dispositivo"></div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" style="font-size:.83rem">Motivo / Observação</label>
+          <textarea id="mc-motivo" class="form-control" style="font-size:.83rem" rows="3"
+            placeholder="Descreva o motivo do chamado…"></textarea>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="mc-tecnico" checked />
+          <label class="form-check-label" style="font-size:.83rem" for="mc-tecnico">
+            <i class="bi bi-person-fill-gear me-1 text-muted"></i>Requer técnico presencial
+          </label>
+        </div>
+        <div id="mc-feedback" class="mt-3"></div>
+      </div>
+      <div class="modal-footer px-4">
+        <button type="button" class="btn btn-light" style="font-size:.83rem" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn-confirm" id="mc-confirmar" onclick="confirmarChamado()">
+          <i class="bi bi-send-fill"></i>Confirmar Chamado
+        </button>
+      </div>
     </div>
   </div>
 </div>
-{% endif %}
 
-<div class="footer-ts">
-  <i class="bi bi-clock me-1"></i>Atualizado em {{ atualizado }}
-</div>
+<!-- Dados para JS -->
+<script>
+  window.DASH = {
+    labels: {{ ["Crítica","Alta","Média","Baixa","Info"] | tojson }},
+    data:   [{{ stats.por_crit.C.count }},{{ stats.por_crit.A.count }},{{ stats.por_crit.M.count }},{{ stats.por_crit.B.count }},{{ stats.por_crit.I.count }}],
+    colors: {{ ["#dc3545","#fd7e14","#ffc107","#0d6efd","#6c757d"] | tojson }}
+  };
+  window.ALARMES  = {{ alarmes | tojson }};
+  window.UNIDADES = [];
 
+  /* Pré-popula predições do /api/dashboard/risco para evitar chamadas extras */
+  (function () {
+    var PRE = {};
+    {% for r in risco %}
+    PRE[{{ r.dispositivo_id }}] = {
+      risk: {{ r.risk_score }},
+      anomaly: {{ 'true' if r.alertas else 'false' }},
+      reason: {{ (r.alertas | join(', ')) | tojson }}
+    };
+    {% endfor %}
+    if (!Object.keys(PRE).length) return;
+    var _fetch = window.fetch;
+    window.fetch = function(url) {
+      var m = String(url).match(/\/api\/predict\/(\d+)/);
+      if (m) {
+        var d = PRE[parseInt(m[1])];
+        var payload = d
+          ? { status:"ok", risk_score: d.risk, anomaly: d.anomaly, anomaly_reason: d.reason }
+          : { status:"ok", risk_score: null, anomaly: false, anomaly_reason: null };
+        return Promise.resolve({ ok:true, json: function(){ return Promise.resolve(payload); } });
+      }
+      return _fetch.apply(this, arguments);
+    };
+  })();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 </body>
 </html>

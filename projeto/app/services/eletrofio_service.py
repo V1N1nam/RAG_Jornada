@@ -247,12 +247,15 @@ def buscar_alarmes_loja(loja_id: int) -> dict:
         if not a.get("eventoDhCad"):
             sem_tratativa += 1
         linhas.append({
-            "criticidade":   crit,
-            "crit_label":    CRIT_CONFIG.get(crit, CRIT_CONFIG["I"])["label"],
-            "tag":           a.get("dispositivoNm", ""),
-            "alarme_desc":   a.get("alarmeDesc", ""),
-            "tempo":         a.get("tempo", ""),
-            "sem_tratativa": not a.get("eventoDhCad"),
+            "dispositivo_id": a.get("dispositivoId"),
+            "loja_id":        loja_id,
+            "loja_nome":      loja_nome,
+            "criticidade":    crit,
+            "crit_label":     CRIT_CONFIG.get(crit, CRIT_CONFIG["I"])["label"],
+            "tag":            a.get("dispositivoNm", ""),
+            "alarme_desc":    a.get("alarmeDesc", ""),
+            "tempo":          a.get("tempo", ""),
+            "sem_tratativa":  not a.get("eventoDhCad"),
         })
 
     ordem = {"C": 0, "A": 1, "M": 2, "B": 3, "I": 4}
