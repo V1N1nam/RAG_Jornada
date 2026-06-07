@@ -160,5 +160,78 @@ def proxy_abrir_chamado():
         return jsonify({"status": "erro", "mensagem": str(e)}), 500
 
 
+# ── Helpers de proxy ─────────────────────────────────────────────────────────
+
+def _proxy_get(path: str, timeout: int = 15):
+    try:
+        r = _requests.get(f"{ML_API_BASE_URL}{path}", timeout=timeout)
+        return r.content, r.status_code, {"Content-Type": "application/json"}
+    except Exception as e:
+        return jsonify({"status": "erro", "mensagem": str(e)}), 502
+
+
+def _proxy_post(path: str, timeout: int = 30):
+    try:
+        r = _requests.post(f"{ML_API_BASE_URL}{path}",
+                           json=request.get_json(silent=True),
+                           timeout=timeout)
+        return r.content, r.status_code, {"Content-Type": "application/json"}
+    except Exception as e:
+        return jsonify({"status": "erro", "mensagem": str(e)}), 502
+
+
+def _proxy_patch(path: str, timeout: int = 15):
+    try:
+        r = _requests.patch(f"{ML_API_BASE_URL}{path}",
+                            json=request.get_json(silent=True),
+                            timeout=timeout)
+        return r.content, r.status_code, {"Content-Type": "application/json"}
+    except Exception as e:
+        return jsonify({"status": "erro", "mensagem": str(e)}), 502
+
+
+# ── Admin / Pipeline ─────────────────────────────────────────────────────────
+
+@app.route("/api/admin/coletar", methods=["POST"])
+def admin_coletar():
+    return _proxy_post("/api/admin/coletar", timeout=60)
+
+
+@app.route("/api/admin/treinar", methods=["POST"])
+def admin_treinar():
+    return _proxy_post("/api/admin/treinar", timeout=60)
+
+
+@app.route("/api/pipeline/status")
+def pipeline_status():
+    return _proxy_get("/api/pipeline/status")
+
+
+# ── Feedback loop ─────────────────────────────────────────────────────────────
+
+@app.route("/api/feedback", methods=["POST"])
+def feedback():
+    return _proxy_post("/api/feedback")
+
+
+# ── Chamados ──────────────────────────────────────────────────────────────────
+
+@app.route("/api/chamados/<int:chamado_id>/resolver", methods=["PATCH"])
+def chamados_resolver(chamado_id):
+    return _proxy_patch(f"/api/chamados/{chamado_id}/resolver")
+
+
+# ── Monitoramento ─────────────────────────────────────────────────────────────
+
+@app.route("/api/monitoramento/scores/<int:dispositivo_id>")
+def monitoramento_scores(dispositivo_id):
+    return _proxy_get(f"/api/monitoramento/scores/{dispositivo_id}")
+
+
+@app.route("/api/monitoramento/reincidencia")
+def monitoramento_reincidencia():
+    return _proxy_get("/api/monitoramento/reincidencia")
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
