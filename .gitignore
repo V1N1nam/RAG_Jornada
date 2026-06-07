@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtualenv
+venv/
+.venv/
+env/
+
+# Ambiente
+.env
+*.env
+
+# Dados locais
+projeto/data/postgres/
+projeto/data/vectorstore/
+dados_coletados/
+Eletrofio-ML-master/dados_coletados/
+Eletrofio-ML/Eletrofio-ML-master/dados_coletados/
+
+# Modelos treinados
+models/
+*.pkl
+*.joblib
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+.opencode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ngrok
+*.log
+.run_log.txt
+
+# Evolution API local
+evolution-api/
