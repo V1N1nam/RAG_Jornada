@@ -115,7 +115,7 @@
             <span class="kpi-lbl">Exposição / Dia</span>
             <div class="kpi-icon" style="background:rgba(249,115,22,.15);color:#f97316"><i class="bi bi-currency-dollar"></i></div>
           </div>
-          <div class="kpi-num" style="color:#f97316;font-size:1.3rem">R${{ "{:,.0f}".format(financeiro.totais.exposicao_diaria).replace(",",".") }}</div>
+          <div class="kpi-num" style="color:#f97316;font-size:1.3rem">R${{ "{:,.0f}".format(financeiro.totais.exposicao_diaria or 0).replace(",",".") }}</div>
           <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:100%;background:#f97316"></div></div>
         </div>
         <div class="kpi-card" style="border-top:3px solid #22c55e">
@@ -123,7 +123,7 @@
             <span class="kpi-lbl">Economia / Dia</span>
             <div class="kpi-icon" style="background:rgba(34,197,94,.15);color:#22c55e"><i class="bi bi-graph-down-arrow"></i></div>
           </div>
-          <div class="kpi-num" style="color:#22c55e;font-size:1.3rem">R${{ "{:,.0f}".format(financeiro.totais.economia_diaria).replace(",",".") }}</div>
+          <div class="kpi-num" style="color:#22c55e;font-size:1.3rem">R${{ "{:,.0f}".format(financeiro.totais.economia_diaria or 0).replace(",",".") }}</div>
           <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:100%;background:#22c55e"></div></div>
         </div>
         {% endif %}
@@ -134,8 +134,8 @@
             <span class="kpi-lbl">Score ML Médio</span>
             <div class="kpi-icon" style="background:rgba(99,102,241,.15);color:#6366f1"><i class="bi bi-cpu-fill"></i></div>
           </div>
-          <div class="kpi-num" style="color:#6366f1">{{ saude.score_medio | round(1) }}</div>
-          <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:{{ saude.score_medio | round(0) | int }}%;background:#6366f1"></div></div>
+          <div class="kpi-num" style="color:#6366f1">{{ (saude.score_medio or 0) | round(1) }}</div>
+          <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:{{ (saude.score_medio or 0) | round(0) | int }}%;background:#6366f1"></div></div>
         </div>
         {% endif %}
 
@@ -181,14 +181,14 @@
               </thead>
               <tbody>
                 {% for d in risco %}
-                {% set pct = (d.risk_score * 100) | round(1) %}
+                {% set pct = ((d.risk_score or 0) * 100) | round(1) %}
                 {% set risk_cls = "risk-high" if pct >= 60 else ("risk-mid" if pct >= 40 else "risk-low") %}
                 {% set risk_lbl = "Alto" if pct >= 60 else ("Médio" if pct >= 40 else "Baixo") %}
                 <tr class="row-crit-{{ d.criticidade }}">
                   <td><span class="crit-badge crit-{{ d.criticidade }}">{{ d.criticidade }} · {{ d.crit_label }}</span></td>
                   <td class="fw-medium">{{ d.dispositivo_nome }}</td>
-                  <td class="text-center"><span class="temp-val">{{ d.temp_atual }}°C</span></td>
-                  <td class="text-center"><span class="temp-val {{ 'temp-alta' if d.temp_erro > 5 else '' }}">{{ d.temp_erro }}°C</span></td>
+                  <td class="text-center"><span class="temp-val">{{ d.temp_atual if d.temp_atual is not none else "—" }}°C</span></td>
+                  <td class="text-center"><span class="temp-val {{ 'temp-alta' if (d.temp_erro or 0) > 5 else '' }}">{{ d.temp_erro if d.temp_erro is not none else "—" }}°C</span></td>
                   <td class="text-center"><span class="risk-badge {{ risk_cls }}">{{ pct }}% · {{ risk_lbl }}</span></td>
                   <td class="text-center text-sm">
                     {% if d.alertas %}
@@ -240,10 +240,10 @@
               <tr class="row-crit-{{ d.criticidade }}">
                 <td><span class="crit-badge crit-{{ d.criticidade }}">{{ d.criticidade }} · {{ d.crit_label }}</span></td>
                 <td class="fw-medium">{{ d.dispositivo_nome }}</td>
-                <td class="text-center text-sm" style="color:#f97316">R${{ "{:,.0f}".format(d.exposicao_hora).replace(",",".") }}</td>
-                <td class="text-center fw-semibold" style="color:#f97316">R${{ "{:,.0f}".format(d.exposicao_diaria).replace(",",".") }}</td>
-                <td class="text-center fw-semibold" style="color:#22c55e">R${{ "{:,.0f}".format(d.economia_diaria).replace(",",".") }}</td>
-                <td class="text-center"><span class="pill pill-info">{{ d.roi }}x</span></td>
+                <td class="text-center text-sm" style="color:#f97316">R${{ "{:,.0f}".format(d.exposicao_hora or 0).replace(",",".") }}</td>
+                <td class="text-center fw-semibold" style="color:#f97316">R${{ "{:,.0f}".format(d.exposicao_diaria or 0).replace(",",".") }}</td>
+                <td class="text-center fw-semibold" style="color:#22c55e">R${{ "{:,.0f}".format(d.economia_diaria or 0).replace(",",".") }}</td>
+                <td class="text-center"><span class="pill pill-info">{{ d.roi or "—" }}x</span></td>
                 <td class="text-center">
                   {% if d.recomendacao == 'Recomendado' %}
                   <span class="pill pill-success">{{ d.recomendacao }}</span>
@@ -258,10 +258,10 @@
               <tr style="border-top:2px solid #334155">
                 <td colspan="2" class="fw-semibold text-sm" style="color:#94a3b8">TOTAL</td>
                 <td></td>
-                <td class="text-center fw-bold" style="color:#f97316">R${{ "{:,.0f}".format(financeiro.totais.exposicao_diaria).replace(",",".") }}</td>
-                <td class="text-center fw-bold" style="color:#22c55e">R${{ "{:,.0f}".format(financeiro.totais.economia_diaria).replace(",",".") }}</td>
+                <td class="text-center fw-bold" style="color:#f97316">R${{ "{:,.0f}".format(financeiro.totais.exposicao_diaria or 0).replace(",",".") }}</td>
+                <td class="text-center fw-bold" style="color:#22c55e">R${{ "{:,.0f}".format(financeiro.totais.economia_diaria or 0).replace(",",".") }}</td>
                 <td></td>
-                <td class="text-center text-sm" style="color:#94a3b8">R${{ "{:,.0f}".format(financeiro.totais.custo_intervencao).replace(",",".") }} p/ intervenções</td>
+                <td class="text-center text-sm" style="color:#94a3b8">R${{ "{:,.0f}".format(financeiro.totais.custo_intervencao or 0).replace(",",".") }} p/ intervenções</td>
               </tr>
             </tfoot>
           </table>
