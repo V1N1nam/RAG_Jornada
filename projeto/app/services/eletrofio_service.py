@@ -1,11 +1,5 @@
 import requests
-import urllib3
-import numpy as np
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-BASE_URL = "https://credenciamento.eletrofrio.com.br:5900/galileo/api/api_hackathon"
-TIMEOUT = 30
+from app.config import ML_API_BASE_URL
 
 _NIVEL_INFO = {
     "critico":   {"label": "Crítico",   "icon": "🔴"},
@@ -15,91 +9,62 @@ _NIVEL_INFO = {
     "sem_dados": {"label": "Sem dados", "icon": "⚪"},
 }
 
+CRIT_CONFIG = {
+    "C": {"label": "Crítica",  "color": "#ef4444"},
+    "A": {"label": "Alta",     "color": "#f97316"},
+    "M": {"label": "Média",    "color": "#eab308"},
+    "B": {"label": "Baixa",    "color": "#3b82f6"},
+    "I": {"label": "Info",     "color": "#6c757d"},
+}
+
 CRITICIDADE_LABEL = {
-    "C": "Crítica",
-    "A": "Alta",
-    "M": "Média",
-    "B": "Baixa",
-    "I": "Info",
+    "C": "Crítica", "A": "Alta", "M": "Média", "B": "Baixa", "I": "Info",
 }
 
 
-def _get(params: dict):
-    resp = requests.get(BASE_URL, params=params, timeout=TIMEOUT, verify=False)
-    resp.raise_for_status()
-    return resp.json()
-
-
-def _fetch_telemetria(dispositivo_id: int) -> dict | None:
+def _ml_get(path: str, timeout: int = 10) -> dict | None:
     try:
-        resp = requests.get(
-            BASE_URL,
-            params={"route": "telemetria", "dispositivoId": dispositivo_id},
-            timeout=8,
-            verify=False,
-        )
+        resp = requests.get(f"{ML_API_BASE_URL}{path}", timeout=timeout)
         resp.raise_for_status()
         return resp.json()
     except Exception:
         return None
 
 
-def _calcular_risco(raw: dict | None) -> dict:
-    if not raw or not raw.get("datasets"):
-        return {"nivel": "sem_dados", "score": 0, "motivos": []}
+def _get_alarmes() -> list:
+    result = _ml_get("/api/alarmes")
+    if result and result.get("status") == "ok":
+        return result.get("dados", [])
+    return []
 
-    labels = raw.get("labels", [])
-    if len(labels) < 5:
-        return {"nivel": "sem_dados", "score": 0, "motivos": []}
 
-    KEY_MAP = {
-        "Temperatura Ambiente":  "temp",
-        "Setpoint Ambiente":     "setpoint",
-        "Status Degelo":         "degelo",
-        "L1 - Superaquecimento": "superaquecimento",
-    }
-    series = {}
-    for ds in raw["datasets"]:
-        lbl = ds.get("label", "")
-        if lbl in KEY_MAP:
-            vals = [v for v in ds.get("values", []) if v is not None]
-            if len(vals) >= 5:
-                series[KEY_MAP[lbl]] = np.array(vals, dtype=float)
+def _fetch_telemetria_features(dispositivo_id: int) -> dict | None:
+    result = _ml_get(f"/api/telemetria/{dispositivo_id}", timeout=8)
+    if result and result.get("status") == "ok":
+        return result.get("features") or {}
+    return None
+
+
+def _calcular_risco(feats: dict | None) -> dict:
+    if not feats:
+        return {"nivel": "sem_dados", "score": 0, "motivos": []}
 
     motivos = []
     score = 0
 
-    temp = series.get("temp")
-    setpoint = series.get("setpoint")
-    if temp is not None:
-        amp = float(np.nanmax(temp) - np.nanmin(temp))
-        if setpoint is not None:
-            min_len = min(len(temp), len(setpoint))
-            erro = float(np.nanmean(temp[:min_len] - setpoint[:min_len]))
-            if erro > 5:
-                motivos.append(f"Temp {erro:+.1f}°C acima do setpoint")
-                score += 2
-            elif erro > 2:
-                motivos.append(f"Temp {erro:+.1f}°C acima do setpoint")
-                score += 1
-        if amp > 10:
-            motivos.append(f"Alta variação de temp ({amp:.1f}°C)")
-            score += 1
+    amp = float(feats.get("temp_amplitude") or 0)
+    tendencia = float(feats.get("temp_tendencia") or 0)
 
-    degelo = series.get("degelo")
-    if degelo is not None:
-        bin_deg = (degelo > 0.5).astype(int)
-        ciclos = int(np.sum(np.diff(bin_deg, prepend=0) == 1))
-        if ciclos > 5:
-            motivos.append(f"Ciclos de degelo excessivos ({ciclos})")
-            score += 1
+    if amp > 10:
+        motivos.append(f"Alta variação de temp ({amp:.1f}°C)")
+        score += 1
 
-    sup = series.get("superaquecimento")
-    if sup is not None:
-        sup_mean = float(np.nanmean(sup))
-        if sup_mean > 20:
-            motivos.append(f"Superaquecimento elevado ({sup_mean:.1f}°C)")
-            score += 1
+    if tendencia > 0.5:
+        motivos.append(f"Temperatura subindo ({tendencia:.2f}°C/leitura)")
+        score += 2
+    elif tendencia > 0.2:
+        motivos.append(f"Temperatura em elevação ({tendencia:.2f}°C/leitura)")
+        score += 1
 
     if score >= 3:
         nivel = "critico"
@@ -114,11 +79,32 @@ def _calcular_risco(raw: dict | None) -> dict:
 
 
 def analisar_risco_loja(loja_id: int, max_devices: int = 6) -> list:
-    try:
-        todos = _get({"route": "alarmes"})
-    except Exception:
-        return []
+    # Tenta /api/dashboard/risco primeiro (quando disponível na ML API)
+    risco_data = _ml_get("/api/dashboard/risco")
+    if risco_data and risco_data.get("status") == "ok":
+        dados = risco_data.get("dados", [])
+        resultado = []
+        for d in dados:
+            if d.get("loja_id") != loja_id:
+                continue
+            nivel = d.get("risco_nivel", "sem_dados")
+            resultado.append({
+                "dispositivoId": d.get("dispositivo_id"),
+                "dispositivoNm": d.get("tag", str(d.get("dispositivo_id", ""))),
+                "criticidade":   d.get("criticidade", "I"),
+                "risco_nivel":   nivel,
+                "risco_label":   _NIVEL_INFO.get(nivel, {}).get("label", nivel),
+                "risco_icon":    _NIVEL_INFO.get(nivel, {}).get("icon", ""),
+                "risco_score":   d.get("risco_score", 0),
+                "risco_motivos": d.get("risco_motivos", []),
+            })
+            if len(resultado) >= max_devices:
+                break
+        if resultado:
+            return resultado
 
+    # Fallback: /api/alarmes + /api/telemetria/<id>
+    todos = _get_alarmes()
     alarmes_loja = [a for a in todos if a.get("lojaId") == loja_id]
     if not alarmes_loja:
         return []
@@ -142,8 +128,8 @@ def analisar_risco_loja(loja_id: int, max_devices: int = 6) -> list:
 
     resultado = []
     for d in devices:
-        raw = _fetch_telemetria(d["dispositivoId"])
-        risco = _calcular_risco(raw)
+        feats = _fetch_telemetria_features(d["dispositivoId"])
+        risco = _calcular_risco(feats)
         nivel = risco["nivel"]
         resultado.append({
             "dispositivoId": d["dispositivoId"],
@@ -160,37 +146,13 @@ def analisar_risco_loja(loja_id: int, max_devices: int = 6) -> list:
 
 
 def buscar_contexto_loja(loja_id: int) -> str:
-    try:
-        alarmes = _get({"route": "alarmes"})
-    except Exception as e:
-        return f"Não foi possível obter alarmes da loja {loja_id}: {e}"
-
-    try:
-        unidades = _get({"route": "unidades"})
-    except Exception:
-        unidades = []
-
-    alarmes_loja = [a for a in alarmes if a.get("lojaId") == loja_id]
-    unidade = next((u for u in unidades if u.get("lojaId") == loja_id), None)
-
-    if not alarmes_loja and not unidade:
-        return f"Nenhum dado encontrado para a loja {loja_id}."
-
-    lines = [f"=== DADOS DA LOJA {loja_id} ==="]
-
-    loja_nome = ""
-    if alarmes_loja:
-        loja_nome = alarmes_loja[0].get("lojaNm", "")
-    if unidade:
-        loja_nome = unidade.get("lojaNm", loja_nome)
-
-    if loja_nome:
-        lines.append(f"Nome: {loja_nome}")
+    todos = _get_alarmes()
+    alarmes_loja = [a for a in todos if a.get("lojaId") == loja_id]
 
     if not alarmes_loja:
-        lines.append("Nenhum alarme ativo para esta loja.")
-        return "\n".join(lines)
+        return f"Nenhum dado encontrado para a loja {loja_id}."
 
+    loja_nome = alarmes_loja[0].get("lojaNm", "")
     contagem: dict[str, int] = {}
     sem_tratativa = 0
     for a in alarmes_loja:
@@ -199,6 +161,9 @@ def buscar_contexto_loja(loja_id: int) -> str:
         if a.get("eventoDhCad") is None:
             sem_tratativa += 1
 
+    lines = [f"=== DADOS DA LOJA {loja_id} ==="]
+    if loja_nome:
+        lines.append(f"Nome: {loja_nome}")
     lines.append(f"Total de alarmes ativos: {len(alarmes_loja)}")
     lines.append("Alarmes por criticidade:")
     for crit in ["C", "A", "M", "B", "I"]:
@@ -221,22 +186,8 @@ def buscar_contexto_loja(loja_id: int) -> str:
     return "\n".join(lines)
 
 
-CRIT_CONFIG = {
-    "C": {"label": "Crítica",  "color": "#ef4444"},
-    "A": {"label": "Alta",     "color": "#f97316"},
-    "M": {"label": "Média",    "color": "#eab308"},
-    "B": {"label": "Baixa",    "color": "#3b82f6"},
-    "I": {"label": "Info",     "color": "#6c757d"},
-}
-
-
 def buscar_alarmes_loja(loja_id: int) -> dict:
-    """Retorna dados estruturados de alarmes para o dashboard da loja."""
-    try:
-        todos = _get({"route": "alarmes"})
-    except Exception:
-        todos = []
-
+    todos = _get_alarmes()
     alarmes_loja = [a for a in todos if a.get("lojaId") == loja_id]
 
     loja_nome = alarmes_loja[0].get("lojaNm", f"Unidade {loja_id}") if alarmes_loja else f"Unidade {loja_id}"

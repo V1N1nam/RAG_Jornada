@@ -15,5 +15,7 @@ DB_USER = os.getenv("DB_USER", "raguser")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "ragpass")
 
 DASH_SECRET = os.getenv("DASH_SECRET", "dev-secret-eletrofrio")
-# Usa SERVER_URL se DASH_BASE_URL não estiver definido (evita localhost em produção)
 DASH_BASE_URL = os.getenv("DASH_BASE_URL") or os.getenv("SERVER_URL", "http://localhost:5000")
+
+# URL da API ML (poc_app.py / Eletrofio-ML)
+ML_API_BASE_URL = os.getenv("ML_API_BASE_URL", "http://localhost:5001")
