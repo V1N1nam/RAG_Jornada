@@ -10,7 +10,7 @@ from app.services.whatsapp_service import send_message
 from app.services.eletrofio_service import buscar_alarmes_loja, buscar_dashboard_loja
 from app.config import DASH_SECRET, ML_API_BASE_URL
 
-load_dotenv()
+load_dotenv(override=True)
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 _token_serializer = URLSafeTimedSerializer(DASH_SECRET)
