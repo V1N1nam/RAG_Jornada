@@ -7,7 +7,12 @@ def detect_intent(text: str) -> str:
 
     greetings = ["oi", "ola", "olá", "bom dia", "boa tarde", "boa noite"]
     thanks = ["obrigado", "obrigada", "valeu", "fechou", "ta bom", "tá bom", "ok"]
-    human = ["atendente", "humano", "pessoa", "suporte humano"]
+    human = [
+        "atendente", "humano", "pessoa", "suporte humano",
+        "técnico", "tecnico", "numero do tecnico", "número do técnico",
+        "contato do tecnico", "falar com alguem", "falar com alguém",
+        "chamar tecnico", "preciso de ajuda humana",
+    ]
 
     if any(word in text for word in greetings):
         return "greeting"

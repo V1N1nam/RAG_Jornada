@@ -1,6 +1,9 @@
+import os
+
 from langchain_openai import ChatOpenAI
 
 CHAT_MODEL = "gpt-4.1-mini"
+_SUPPORT_PHONE_DISPLAY = os.getenv("SUPPORT_PHONE_DISPLAY", "00 00000-0000")
 
 
 def build_prompt(context: str, question: str, history: str = "") -> str:
@@ -37,6 +40,9 @@ Exemplos do que FAZER quando o usuário perguntar o que pode fazer:
 
 Exemplos do que FAZER quando algo exigir técnico:
 - "Esse tipo de problema precisa de um técnico. Vou acionar nossa equipe e em breve alguém entrará em contato."
+
+Contato do suporte técnico (use sempre que o usuário pedir o número ou contato do técnico):
+WhatsApp: *{_SUPPORT_PHONE_DISPLAY}*
 {history_section}
 Contexto:
 {context}
