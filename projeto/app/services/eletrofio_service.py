@@ -230,6 +230,153 @@ def buscar_contexto_loja(loja_id: int) -> str:
     return "\n".join(lines)
 
 
+# Sessão em memória: phone → lista ordenada de alarmes mostrados ao usuário.
+# Permite resolver "digite 2 para detalhes" sem nova ida ao banco.
+_alarmes_sessao: dict[str, list[dict]] = {}
+
+
+def salvar_alarmes_sessao(phone: str, alarmes: list[dict]) -> None:
+    _alarmes_sessao[phone] = alarmes
+
+
+def buscar_alarme_por_indice(phone: str, index: int) -> dict | None:
+    alarmes = _alarmes_sessao.get(phone, [])
+    if 1 <= index <= len(alarmes):
+        return alarmes[index - 1]
+    return None
+
+
+def formatar_lista_alarmes_numerada(loja_id: int) -> tuple[str, list[dict]]:
+    """
+    Retorna (contexto_para_llm, lista_alarmes).
+    contexto_para_llm inclui resumo + lista numerada para o LLM.
+    lista_alarmes é a ordem exata exibida (para resolução por índice).
+    """
+    todos = _get_alarmes()
+    alarmes_loja = [a for a in todos if a.get("lojaId") == loja_id]
+    if not alarmes_loja:
+        return f"Nenhum alarme ativo para a unidade {loja_id}.", []
+
+    loja_nome = alarmes_loja[0].get("lojaNm", "")
+
+    contagem: dict[str, int] = {}
+    sem_tratativa = 0
+    for a in alarmes_loja:
+        crit = a.get("criticidade", "I")
+        contagem[crit] = contagem.get(crit, 0) + 1
+        if a.get("eventoDhCad") is None:
+            sem_tratativa += 1
+
+    ordem_crit = {"C": 0, "A": 1, "M": 2, "B": 3, "I": 4}
+    alarmes_loja.sort(key=lambda x: ordem_crit.get(x.get("criticidade", "I"), 9))
+    alarmes_a_listar = alarmes_loja[:10]
+
+    lines = [f"=== DADOS DA LOJA {loja_id} ==="]
+    if loja_nome:
+        lines.append(f"Nome: {loja_nome}")
+    lines.append(f"Total de alarmes ativos: {len(alarmes_loja)}")
+    lines.append(f"Alarmes sem tratativa: {sem_tratativa}")
+    lines.append("Resumo por criticidade:")
+    for crit in ["C", "A", "M", "B", "I"]:
+        if crit in contagem:
+            lines.append(f"  - {CRITICIDADE_LABEL[crit]}: {contagem[crit]}")
+
+    lines.append(f"\nALARMES ATIVOS NUMERADOS (total: {len(alarmes_loja)}):")
+    for i, a in enumerate(alarmes_a_listar, start=1):
+        crit = a.get("criticidade", "I")
+        desc = a.get("alarmeDesc", "N/A")
+        disp = a.get("dispositivoNm", "N/A")
+        tempo = a.get("tempo", "")
+        tempo_str = f" — {tempo}" if tempo else ""
+        lines.append(f"  {i}. [{CRITICIDADE_LABEL[crit]}] {disp}: {desc}{tempo_str}")
+
+    if len(alarmes_loja) > 10:
+        lines.append(f"  (+ {len(alarmes_loja) - 10} outros alarmes de menor criticidade)")
+
+    return "\n".join(lines), alarmes_a_listar
+
+
+def formatar_detalhe_alarme_selecionado(alarme: dict, indice: int) -> str:
+    """Formata o contexto detalhado de um alarme selecionado pelo usuário."""
+    crit = alarme.get("criticidade", "I")
+    sem_trat = alarme.get("eventoDhCad") is None
+    return "\n".join([
+        f"=== ALARME SELECIONADO (#{indice}) ===",
+        f"Dispositivo: {alarme.get('dispositivoNm', 'N/A')}",
+        f"Descrição: {alarme.get('alarmeDesc', 'N/A')}",
+        f"Criticidade: {CRITICIDADE_LABEL.get(crit, crit)}",
+        f"Tempo ativo: {alarme.get('tempo', 'N/A')}",
+        f"Tratativa pendente: {'Sim' if sem_trat else 'Não'}",
+    ])
+
+
+def buscar_resumo_chamado(loja_id: int) -> tuple[str, str]:
+    """
+    Retorna (loja_nome, resumo_alarmes) para compor a notificação ao técnico.
+    Falha silenciosa: retorna strings vazias em caso de erro.
+    """
+    try:
+        todos = _get_alarmes()
+        alarmes_loja = [a for a in todos if a.get("lojaId") == loja_id]
+        if not alarmes_loja:
+            return f"Unidade {loja_id}", "sem alarmes ativos no momento"
+        loja_nome = alarmes_loja[0].get("lojaNm", "")
+        contagem: dict[str, int] = {}
+        for a in alarmes_loja:
+            crit = a.get("criticidade", "I")
+            contagem[crit] = contagem.get(crit, 0) + 1
+        partes = [
+            f"{contagem[c]} {CRITICIDADE_LABEL[c].lower()}"
+            for c in ["C", "A", "M", "B"]
+            if c in contagem
+        ]
+        resumo = f"{len(alarmes_loja)} alarme(s) ativo(s): {', '.join(partes)}" if partes else f"{len(alarmes_loja)} alarme(s) ativo(s)"
+        return loja_nome, resumo
+    except Exception:
+        return "", ""
+
+
+def buscar_detalhes_alarme_especifico(loja_id: int, query: str) -> str:
+    """
+    Busca alarmes da loja que melhor correspondem ao texto do usuário.
+    Retorna string formatada para uso como contexto no LLM.
+    Pontuação: cada palavra com 3+ chars que aparece na descrição ou dispositivo conta 2pts.
+    """
+    todos = _get_alarmes()
+    alarmes_loja = [a for a in todos if a.get("lojaId") == loja_id]
+    if not alarmes_loja:
+        return ""
+
+    palavras = [w for w in query.lower().split() if len(w) >= 3]
+
+    def _score(a: dict) -> int:
+        desc = (a.get("alarmeDesc") or "").lower()
+        disp = (a.get("dispositivoNm") or "").lower()
+        return sum(2 for w in palavras if w in desc or w in disp)
+
+    scored = sorted(
+        ((s, a) for a in alarmes_loja if (s := _score(a)) > 0),
+        key=lambda x: (-x[0], {"C": 0, "A": 1, "M": 2, "B": 3, "I": 4}.get(x[1].get("criticidade", "I"), 9)),
+    )
+
+    if not scored:
+        return ""
+
+    lines = ["=== DETALHES DO ALARME ==="]
+    for _, a in scored[:3]:
+        crit = a.get("criticidade", "I")
+        sem_trat = a.get("eventoDhCad") is None
+        lines += [
+            f"Dispositivo: {a.get('dispositivoNm', 'N/A')}",
+            f"Descrição do alarme: {a.get('alarmeDesc', 'N/A')}",
+            f"Criticidade: {CRITICIDADE_LABEL.get(crit, crit)}",
+            f"Tempo ativo: {a.get('tempo', 'N/A')}",
+            f"Tratativa pendente: {'Sim' if sem_trat else 'Não'}",
+            "",
+        ]
+    return "\n".join(lines).strip()
+
+
 def buscar_alarmes_loja(loja_id: int) -> dict:
     todos = _get_alarmes()
     alarmes_loja = [a for a in todos if a.get("lojaId") == loja_id]

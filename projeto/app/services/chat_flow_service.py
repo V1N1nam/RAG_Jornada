@@ -1,4 +1,6 @@
 import re
+import random
+import string
 
 from app.database.repositories.conversation_repository import (
     get_or_create_conversation,
@@ -8,11 +10,22 @@ from app.services.conversation_service import (
     register_user_message,
     register_assistant_message,
     set_conversation_state,
+    get_historico_formatado,
 )
 from app.services.intent_service import detect_intent, detect_menu_choice, detect_meta_request, detect_confirmation
 from app.services.rag_service import ask_question
-from app.services.eletrofio_service import buscar_contexto_loja, analisar_risco_loja
+from app.services.eletrofio_service import (
+    buscar_contexto_loja,
+    analisar_risco_loja,
+    buscar_detalhes_alarme_especifico,
+    formatar_lista_alarmes_numerada,
+    formatar_detalhe_alarme_selecionado,
+    salvar_alarmes_sessao,
+    buscar_alarme_por_indice,
+    buscar_resumo_chamado,
+)
 from app.services.dashboard_service import generate_dash_link
+from app.services.whatsapp_service import notificar_tecnico
 
 from app.services.natural_language_service import (
     generate_greeting_ask_loja,
@@ -20,12 +33,20 @@ from app.services.natural_language_service import (
     generate_loja_confirmation_menu,
     generate_problem_request,
     generate_human_handoff,
+    generate_awaiting_human_response,
     generate_closing,
     generate_fallback,
 )
 
 _LOJA_RE = re.compile(r'(?:unidade|loja|id|cod(?:igo)?)[^\d]*(\d{2,6})', re.IGNORECASE)
 _PLAIN_NUMBER_RE = re.compile(r'^\s*(\d{2,6})\s*$')
+_ALARM_IDX_RE = re.compile(r'^\s*(\d{1,2})\s*$')  # seleção de alarme por número (1–10)
+
+_FOOTER_SUPORTE = "\n\n_(Digite *menu* para ver as opções ou *técnico* para falar com um especialista)_"
+
+
+def _gerar_protocolo() -> str:
+    return "".join(random.choices(string.ascii_uppercase + string.digits, k=5))
 
 _ASK_LOJA_AGAIN = (
     "Não consegui identificar o número da unidade. "
@@ -41,6 +62,17 @@ def _extrair_loja_id(text: str) -> int | None:
     if m:
         return int(m.group(1))
     return None
+
+
+def _disparar_notificacao_tecnico(
+    phone: str, loja_id: int | None, ultima_mensagem: str, protocolo: str = ""
+) -> None:
+    """Envia contexto do chamado para o WhatsApp de suporte. Falha silenciosa."""
+    try:
+        loja_nome, resumo_alarmes = buscar_resumo_chamado(loja_id) if loja_id else ("", "")
+        notificar_tecnico(phone, loja_id, loja_nome, resumo_alarmes, ultima_mensagem, protocolo=protocolo)
+    except Exception as exc:
+        print(f"[_disparar_notificacao_tecnico] erro: {exc}", flush=True)
 
 
 def handle_chat_message(phone: str, text: str, loja_id: int | None = None) -> dict:
@@ -61,9 +93,11 @@ def handle_chat_message(phone: str, text: str, loja_id: int | None = None) -> di
         return {"phone": phone, "state": "closed", "intent": "closing", "answer": answer}
 
     if intent == "human":
-        answer = generate_human_handoff(text)
+        protocolo = _gerar_protocolo()
+        answer = generate_human_handoff(text, protocolo=protocolo)
         register_assistant_message(conversation["id"], answer)
         set_conversation_state(phone, "awaiting_human", "human")
+        _disparar_notificacao_tecnico(phone, loja_id, text, protocolo=protocolo)
         return {"phone": phone, "state": "awaiting_human", "intent": "human", "answer": answer}
 
     # Meta-requests: menu ou dash funcionam em qualquer estado de suporte
@@ -92,8 +126,8 @@ def handle_chat_message(phone: str, text: str, loja_id: int | None = None) -> di
 
     if current_state in ("new", "closed"):
         if loja_id:
-            # Já tem loja salva — pede confirmação
-            answer = generate_loja_confirmation_ask(loja_id)
+            # Já tem loja salva — pede confirmação; "returning" diferencia cliente que voltou
+            answer = generate_loja_confirmation_ask(loja_id, returning=(current_state == "closed"))
             register_assistant_message(conversation["id"], answer)
             set_conversation_state(phone, "awaiting_loja_confirmation", "greeting")
             return {"phone": phone, "state": "awaiting_loja_confirmation", "intent": "greeting", "answer": answer, "loja_id": loja_id}
@@ -161,8 +195,10 @@ def handle_chat_message(phone: str, text: str, loja_id: int | None = None) -> di
         choice = detect_menu_choice(text)
 
         if choice == "alarmes":
-            eletrofio_ctx = buscar_contexto_loja(loja_id) if loja_id else ""
             if loja_id:
+                lista_ctx, alarmes_lista = formatar_lista_alarmes_numerada(loja_id)
+                salvar_alarmes_sessao(phone, alarmes_lista)
+                eletrofio_ctx = lista_ctx
                 try:
                     analise = analisar_risco_loja(loja_id, max_devices=3)
                     if analise:
@@ -173,6 +209,8 @@ def handle_chat_message(phone: str, text: str, loja_id: int | None = None) -> di
                         eletrofio_ctx += "\n".join(linhas)
                 except Exception:
                     pass
+            else:
+                eletrofio_ctx = ""
             rag_result = ask_question("quais alarmes estão ativos", k=3, extra_context=eletrofio_ctx, mode="alarmes")
             answer = rag_result["answer"]
             register_assistant_message(conversation["id"], answer)
@@ -198,9 +236,11 @@ def handle_chat_message(phone: str, text: str, loja_id: int | None = None) -> di
             }
 
         if choice == "tecnico":
-            answer = generate_human_handoff(text)
+            protocolo = _gerar_protocolo()
+            answer = generate_human_handoff(text, protocolo=protocolo)
             register_assistant_message(conversation["id"], answer)
             set_conversation_state(phone, "awaiting_human", "human")
+            _disparar_notificacao_tecnico(phone, loja_id, text, protocolo=protocolo)
             return {"phone": phone, "state": "awaiting_human", "intent": "human", "answer": answer}
 
         if choice == "dash":
@@ -235,13 +275,21 @@ def handle_chat_message(phone: str, text: str, loja_id: int | None = None) -> di
             "answer": answer,
         }
 
+    # ── Aguardando técnico ───────────────────────────────────────────────────
+
+    if current_state == "awaiting_human":
+        answer = generate_awaiting_human_response()
+        register_assistant_message(conversation["id"], answer)
+        return {"phone": phone, "state": "awaiting_human", "intent": "waiting", "answer": answer}
+
     # ── Suporte ativo ────────────────────────────────────────────────────────
 
     eletrofio_ctx = buscar_contexto_loja(loja_id) if loja_id else ""
 
     if current_state == "awaiting_problem_description":
-        rag_result = ask_question(text, k=3, extra_context=eletrofio_ctx)
-        answer = rag_result["answer"]
+        history = get_historico_formatado(conversation["id"])
+        rag_result = ask_question(text, k=3, extra_context=eletrofio_ctx, history=history)
+        answer = rag_result["answer"] + _FOOTER_SUPORTE
         register_assistant_message(conversation["id"], answer)
         set_conversation_state(phone, "in_support", "problem_description")
         return {
@@ -255,8 +303,47 @@ def handle_chat_message(phone: str, text: str, loja_id: int | None = None) -> di
         }
 
     if intent in ("question", "problem") or current_state == "in_support":
-        rag_result = ask_question(text, k=3, extra_context=eletrofio_ctx)
-        answer = rag_result["answer"]
+        last_intent = conversation.get("last_intent")
+        rag_mode = "support"
+        rag_k = 3
+        query = text  # pode ser sobrescrito na seleção por número
+
+        if loja_id and last_intent == "alarmes":
+            # Seleção pelo número: usuário digitou "2" para pedir detalhe do alarme #2
+            m = _ALARM_IDX_RE.match(text)
+            if m:
+                idx = int(m.group(1))
+                alarme = buscar_alarme_por_indice(phone, idx)
+                if alarme:
+                    eletrofio_ctx = (
+                        formatar_detalhe_alarme_selecionado(alarme, idx)
+                        + "\n\n" + eletrofio_ctx
+                    )
+                    query = (
+                        f"me explica o alarme {alarme.get('alarmeDesc', '')} "
+                        f"no dispositivo {alarme.get('dispositivoNm', '')}"
+                    )
+                    rag_mode = "alarme_detalhe"
+                    rag_k = 5
+            else:
+                # Follow-up textual após listagem de alarmes
+                detalhes = buscar_detalhes_alarme_especifico(loja_id, text)
+                if detalhes:
+                    eletrofio_ctx = detalhes + "\n\n" + eletrofio_ctx
+                    rag_mode = "alarme_detalhe"
+                    rag_k = 5
+
+        elif loja_id and "alarme" in text.lower():
+            # Qualquer pergunta explícita sobre alarme em outro estado de suporte
+            detalhes = buscar_detalhes_alarme_especifico(loja_id, text)
+            if detalhes:
+                eletrofio_ctx = detalhes + "\n\n" + eletrofio_ctx
+                rag_mode = "alarme_detalhe"
+                rag_k = 5
+
+        history = get_historico_formatado(conversation["id"])
+        rag_result = ask_question(query, k=rag_k, extra_context=eletrofio_ctx, mode=rag_mode, history=history)
+        answer = rag_result["answer"] + _FOOTER_SUPORTE
         register_assistant_message(conversation["id"], answer)
         set_conversation_state(phone, "in_support", intent)
         return {

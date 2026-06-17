@@ -3,7 +3,12 @@ from langchain_openai import ChatOpenAI
 CHAT_MODEL = "gpt-4.1-mini"
 
 
-def build_prompt(context: str, question: str) -> str:
+def build_prompt(context: str, question: str, history: str = "") -> str:
+    history_section = (
+        f"\nHistórico recente da conversa (use para entender referências como 'esse', 'aquele', 'o anterior'):\n{history}\n"
+        if history
+        else ""
+    )
     return f"""
 Você é um assistente de suporte técnico especializado em refrigeração, que atende via WhatsApp.
 
@@ -32,7 +37,7 @@ Exemplos do que FAZER quando o usuário perguntar o que pode fazer:
 
 Exemplos do que FAZER quando algo exigir técnico:
 - "Esse tipo de problema precisa de um técnico. Vou acionar nossa equipe e em breve alguém entrará em contato."
-
+{history_section}
 Contexto:
 {context}
 
@@ -41,8 +46,8 @@ Pergunta do usuário:
 """.strip()
 
 
-def ask_llm(context: str, question: str) -> str:
+def ask_llm(context: str, question: str, history: str = "") -> str:
     llm = ChatOpenAI(model=CHAT_MODEL)
-    prompt = build_prompt(context, question)
+    prompt = build_prompt(context, question, history)
     response = llm.invoke(prompt)
     return response.content

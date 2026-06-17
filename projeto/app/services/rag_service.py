@@ -9,23 +9,36 @@ def retrieve_context(question: str, k: int = 3):
     return results
 
 
-def ask_question(question: str, k: int = 3, extra_context: str = "", mode: str = "support") -> dict:
+def ask_question(
+    question: str,
+    k: int = 3,
+    extra_context: str = "",
+    mode: str = "support",
+    history: str = "",
+) -> dict:
     search_query = (question + " " + extra_context[:400]).strip() if extra_context else question
     results = retrieve_context(search_query, k=k)
 
     rag_context = "\n\n".join([item["content"] for item in results])
     context = (extra_context + "\n\n" + rag_context).strip() if extra_context else rag_context
 
-    # Instrução extra apenas na consulta inicial de alarmes, não em follow-ups
     llm_question = question
     if mode == "alarmes" and extra_context:
         llm_question = (
             question
-            + "\n\nCom base nos dados acima: informe quais alarmes estão ativos, "
-            "em qual equipamento ou local, e explique o que cada um significa tecnicamente."
+            + "\n\nCom base nos dados acima: apresente os alarmes listados em ALARMES ATIVOS NUMERADOS "
+            "mantendo exatamente a mesma numeração e ordem. Para cada alarme explique brevemente o que significa. "
+            "Ao final, informe ao usuário que pode digitar o número do alarme para obter mais detalhes."
+        )
+    elif mode == "alarme_detalhe" and extra_context:
+        llm_question = (
+            question
+            + "\n\nCom base nos dados acima: explique em detalhes o que esse alarme significa, "
+            "qual é a causa técnica mais provável, há quanto tempo está ativo, e quais "
+            "verificações simples e seguras o usuário pode fazer antes de acionar um técnico."
         )
 
-    answer = ask_llm(context, llm_question)
+    answer = ask_llm(context, llm_question, history)
 
     sources = [
         {
