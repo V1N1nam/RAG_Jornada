@@ -141,6 +141,56 @@ def api_health():
     return jsonify({"status": "ok", "api": True})
 
 
+@app.route("/api/debug/loja/<int:loja_id>")
+def debug_loja(loja_id):
+    """Diagnóstico: mostra o que a ML API retorna e se os filtros batem."""
+    result = {}
+
+    # Alarmes
+    try:
+        r = _requests.get(f"{ML_API_BASE_URL}/api/alarmes", timeout=10)
+        raw = r.json()
+        todos = raw.get("dados", [])
+        sample = todos[:3] if todos else []
+        # detecta campo de loja no primeiro item
+        primeiro = todos[0] if todos else {}
+        campo_loja = next((k for k in ("lojaId", "loja_id", "loja", "lojaID") if k in primeiro), None)
+        batem = [a for a in todos if str(a.get(campo_loja, "")) == str(loja_id)] if campo_loja else []
+        result["alarmes"] = {
+            "total_na_api": len(todos),
+            "campo_loja_detectado": campo_loja,
+            "loja_id_buscado": loja_id,
+            "tipo_loja_id_buscado": type(loja_id).__name__,
+            "valor_campo_no_primeiro": primeiro.get(campo_loja) if campo_loja else None,
+            "tipo_valor_campo": type(primeiro.get(campo_loja)).__name__ if campo_loja else None,
+            "batem_com_loja_id": len(batem),
+            "sample_primeiros_3": sample,
+        }
+    except Exception as e:
+        result["alarmes"] = {"erro": str(e)}
+
+    # Risco
+    try:
+        r = _requests.get(f"{ML_API_BASE_URL}/api/dashboard/risco", timeout=10)
+        raw = r.json()
+        todos = raw.get("dados", [])
+        primeiro = todos[0] if todos else {}
+        campo_loja = next((k for k in ("loja_id", "lojaId", "loja", "lojaID") if k in primeiro), None)
+        batem = [d for d in todos if str(d.get(campo_loja, "")) == str(loja_id)] if campo_loja else []
+        result["risco"] = {
+            "total_na_api": len(todos),
+            "campo_loja_detectado": campo_loja,
+            "batem_com_loja_id": len(batem),
+            "valor_campo_no_primeiro": primeiro.get(campo_loja) if campo_loja else None,
+            "tipo_valor_campo": type(primeiro.get(campo_loja)).__name__ if campo_loja else None,
+            "sample_primeiro": {k: v for k, v in list(primeiro.items())[:12]} if primeiro else None,
+        }
+    except Exception as e:
+        result["risco"] = {"erro": str(e)}
+
+    return jsonify(result)
+
+
 @app.route("/api/telemetria/<int:dispositivo_id>")
 def proxy_telemetria(dispositivo_id):
     try:
