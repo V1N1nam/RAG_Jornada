@@ -450,8 +450,9 @@
 
   // ── Painel de Detalhes do Alarme ────────────────────────────────────────────
 
-  let _dpChartRisco = null;
-  let _dpChartTemp  = null;
+  let _dpChartRisco    = null;
+  let _dpChartTemp     = null;
+  let _dpChartHistorico = null;
 
   function fecharDetalheAlarme() {
     document.getElementById("detailPanel")?.classList.remove("open");
@@ -471,21 +472,42 @@
 
     const crit      = a.criticidade || "I";
     const critLabel = CRIT_LABELS[crit] || crit;
+    const risco     = (window.DASH?.riscoMap || {})[a.dispositivo_id] || {};
 
     title.textContent = `${a.tag || "Dispositivo"} — ${a.alarme_desc || "Alarme"}`;
     badge.innerHTML   = `<span class="crit-badge crit-${crit}">${crit} · ${critLabel}</span>`;
 
-    // Skeleton inicial
+    // Helper para temperatura com cor
+    const fmtTemp = (v, warn) => v != null
+      ? `<span style="color:${warn ? "#ef4444" : "#e2e8f0"}">${v}°C</span>`
+      : "—";
+
+    // Monta grid de info com dados do risco já disponíveis
+    const tempErroCls = Math.abs(risco.tempErro || 0) > 5 ? "val-crit" : (risco.tempErro != null ? "val-warn" : "");
+    const alertasHtml = risco.alertas?.length
+      ? risco.alertas.map(a => `<span class="pill pill-warning" style="font-size:.68rem">${a}</span>`).join(" ")
+      : '<span style="color:#22c55e;font-size:.8rem">✓ Nenhum</span>';
+    const nomeDisp = risco.nome && risco.nome !== a.tag ? risco.nome : null;
+
+    const safeAttr = s => (s || "").replace(/'/g, "\\'");
+
     body.innerHTML = `
       <div>
         <div class="detail-section-title">Informações do Alarme</div>
         <div class="detail-info-grid">
-          ${infoItem("Dispositivo (Tag)", a.tag || "—")}
-          ${infoItem("Criticidade", `<span class='crit-badge crit-${crit}'>${crit} · ${critLabel}</span>`, "")}
-          ${infoItem("Descrição do Alarme", a.alarme_desc || "—", a.alarme_desc && a.alarme_desc.length > 20 ? "val-warn" : "")}
+          ${infoItem("Tag / Dispositivo", a.tag || "—")}
+          ${nomeDisp ? infoItem("Nome Completo", nomeDisp) : ""}
+          ${infoItem("Criticidade", `<span class='crit-badge crit-${crit}'>${crit} · ${critLabel}</span>`)}
+          ${infoItem("Descrição do Alarme", a.alarme_desc || "—", a.alarme_desc ? "val-warn" : "")}
           ${infoItem("Tempo Ativo", a.tempo || "—", "val-warn")}
-          ${infoItem("ID Dispositivo", a.dispositivo_id || "—")}
           ${infoItem("Tratativa", a.sem_tratativa ? "⚠ Pendente" : "✓ Registrada", a.sem_tratativa ? "val-crit" : "val-ok")}
+          ${risco.tempAtual != null ? infoItem("Temperatura Atual", fmtTemp(risco.tempAtual, (risco.tempErro||0) > 5)) : ""}
+          ${risco.tempErro  != null ? infoItem("Desvio do Setpoint", fmtTemp(risco.tempErro, (risco.tempErro||0) > 5), tempErroCls) : ""}
+          ${infoItem("ID Dispositivo", a.dispositivo_id || "—")}
+          <div class="detail-info-item" style="grid-column:1/-1">
+            <div class="detail-info-label">Alertas ML</div>
+            <div style="margin-top:.3rem;display:flex;flex-wrap:wrap;gap:.3rem">${alertasHtml}</div>
+          </div>
         </div>
       </div>
 
@@ -498,7 +520,19 @@
           </div>
           <div class="detail-chart-box" id="dp-anomalia-box">
             <div class="detail-chart-box-title">Anomalia Detectada</div>
-            <div class="text-center py-4"><span class="shimmer" style="width:80px;height:24px;display:inline-block;border-radius:12px"></span></div>
+            <div id="dp-anomalia-inner" class="text-center py-4">
+              <span class="shimmer" style="width:80px;height:24px;display:inline-block;border-radius:12px"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="dp-historico-section">
+        <div class="detail-section-title">Histórico de Risco</div>
+        <div class="detail-chart-box">
+          <div class="detail-chart-box-title">Evolução do Score ML</div>
+          <div class="detail-chart-canvas-wrap" style="height:160px" id="dp-historico-wrap">
+            <div class="text-center py-4"><span class="shimmer" style="width:60%;height:10px;display:inline-block;border-radius:4px"></span></div>
           </div>
         </div>
       </div>
@@ -511,35 +545,41 @@
             <div class="detail-chart-canvas-wrap"><canvas id="dp-chart-temp"></canvas></div>
           </div>
           <div class="detail-chart-box" id="dp-feat-box">
-            <div class="detail-chart-box-title">Indicadores</div>
-            <div class="text-center py-4"><span class="shimmer" style="width:80%;height:12px;display:inline-block;border-radius:4px"></span></div>
+            <div class="detail-chart-box-title">Indicadores de Comportamento</div>
+            <div class="text-center py-4">
+              <span class="shimmer" style="width:80%;height:12px;display:inline-block;border-radius:4px"></span>
+            </div>
           </div>
         </div>
       </div>
 
       <div class="detail-action-row">
         <button class="detail-chamado-btn"
-          onclick="abrirModalChamadoFromDetail(${a.dispositivo_id}, ${a.loja_id}, '${(a.loja_nome||"").replace(/'/g,"\\'")}', '${(a.tag||"").replace(/'/g,"\\'")}', '${(a.alarme_desc||"").replace(/'/g,"\\'")}', '${crit}')">
+          onclick="abrirModalChamadoFromDetail(${a.dispositivo_id}, ${a.loja_id}, '${safeAttr(a.loja_nome)}', '${safeAttr(a.tag)}', '${safeAttr(a.alarme_desc)}', '${crit}')">
           <i class="bi bi-tools"></i> Abrir Chamado Técnico
         </button>
       </div>`;
 
     // Destroi charts anteriores
-    if (_dpChartRisco) { _dpChartRisco.destroy(); _dpChartRisco = null; }
-    if (_dpChartTemp)  { _dpChartTemp.destroy();  _dpChartTemp  = null; }
+    if (_dpChartRisco)    { _dpChartRisco.destroy();    _dpChartRisco    = null; }
+    if (_dpChartTemp)     { _dpChartTemp.destroy();     _dpChartTemp     = null; }
+    if (_dpChartHistorico){ _dpChartHistorico.destroy(); _dpChartHistorico = null; }
 
     panel.classList.add("open");
     overlay.classList.add("open");
     document.body.style.overflow = "hidden";
 
-    // Carrega dados em paralelo
-    const [teleRes, predRes] = await Promise.all([
+    // Carrega telemetria, predição e histórico em paralelo
+    const [teleRes, predRes, histRes] = await Promise.all([
       carregarTelemetria(a.dispositivo_id),
       carregarPredicao(a.dispositivo_id),
+      fetch(`/api/monitoramento/scores/${a.dispositivo_id}`).then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
 
-    // Chart risco (gauge doughnut)
-    const riskPct = predRes.risk != null ? Math.round(predRes.risk * 100) : null;
+    // ── Gauge de Risco ────────────────────────────────────────────────────────
+    const riskPct = predRes.risk != null ? Math.round(predRes.risk * 100)
+      : risco.riskScore != null ? Math.round(risco.riskScore * 100)
+      : null;
     const riskCtx = document.getElementById("dp-chart-risco");
     if (riskCtx) {
       const riskColor = riskPct == null ? "#334155"
@@ -561,10 +601,7 @@
           responsive: true,
           maintainAspectRatio: false,
           cutout: "72%",
-          plugins: {
-            legend: { display: false },
-            tooltip: { enabled: false },
-          },
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
         },
         plugins: [{
           id: "gauge-text",
@@ -581,8 +618,7 @@
             ctx.fillStyle = "#64748b";
             ctx.font = "12px Inter, sans-serif";
             const lbl = riskPct == null ? "sem dados"
-              : riskPct < 30 ? "Baixo"
-              : riskPct < 75 ? "Médio" : "Alto";
+              : riskPct < 30 ? "Baixo" : riskPct < 75 ? "Médio" : "Alto";
             ctx.fillText(lbl, cx, cy + 18);
             ctx.restore();
           },
@@ -590,24 +626,77 @@
       });
     }
 
-    // Anomalia box
-    const anomBox = document.getElementById("dp-anomalia-box");
-    if (anomBox) {
-      const anomHtml = predRes.anomaly
+    // ── Anomalia ──────────────────────────────────────────────────────────────
+    const anomInner = document.getElementById("dp-anomalia-inner");
+    if (anomInner) {
+      const reason = predRes.reason || (risco.alertas?.length ? risco.alertas.join(", ") : "");
+      anomInner.innerHTML = predRes.anomaly || risco.alertas?.length
         ? `<div class="d-flex flex-column align-items-center gap-2 pt-2">
              <span class="detail-anomalia-tag yes"><i class="bi bi-exclamation-triangle-fill"></i> Anomalia Detectada</span>
-             ${predRes.reason ? `<div style="font-size:.75rem;color:#94a3b8;text-align:center;padding:.5rem">${predRes.reason}</div>` : ""}
+             ${reason ? `<div style="font-size:.73rem;color:#94a3b8;text-align:center;padding:.5rem">${reason}</div>` : ""}
            </div>`
         : `<div class="text-center pt-3">
              <span class="detail-anomalia-tag no"><i class="bi bi-check-circle-fill"></i> Sem Anomalia</span>
            </div>`;
-      anomBox.querySelector("div:last-child").innerHTML = anomHtml;
     }
 
-    // Chart temperatura
-    const feats = teleRes.features;
+    // ── Histórico de Scores ───────────────────────────────────────────────────
+    const histWrap = document.getElementById("dp-historico-wrap");
+    const scores = histRes?.scores || histRes?.dados || null;
+    if (histWrap && scores?.length > 1) {
+      const canvas = document.createElement("canvas");
+      canvas.id = "dp-chart-historico";
+      histWrap.innerHTML = "";
+      histWrap.appendChild(canvas);
+      const labels = scores.map(s => s.data || s.date || s.ts || "");
+      const vals   = scores.map(s => {
+        const v = s.risk_score ?? s.score ?? s.value;
+        return v != null ? Math.round(v * 100) : null;
+      });
+      _dpChartHistorico = new Chart(canvas, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "Score de Risco (%)",
+            data: vals,
+            borderColor: "#6366f1",
+            backgroundColor: "rgba(99,102,241,.12)",
+            borderWidth: 2,
+            pointRadius: 3,
+            pointBackgroundColor: "#6366f1",
+            tension: 0.35,
+            fill: true,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: c => ` ${c.parsed.y}%` } },
+          },
+          scales: {
+            x: { ticks: { color: "#64748b", font: { size: 9 }, maxRotation: 30 }, grid: { display: false } },
+            y: {
+              min: 0, max: 100,
+              ticks: { color: "#64748b", font: { size: 9 }, callback: v => `${v}%` },
+              grid: { color: "rgba(255,255,255,.04)" },
+            },
+          },
+        },
+      });
+    } else if (histWrap) {
+      histWrap.innerHTML = `<div class="text-muted text-center py-3" style="font-size:.78rem">
+        Histórico de scores não disponível para este dispositivo.
+      </div>`;
+    }
+
+    // ── Chart Temperatura ─────────────────────────────────────────────────────
+    const feats  = teleRes.features;
     const tempCtx = document.getElementById("dp-chart-temp");
     if (tempCtx && feats && feats.temp_minima != null) {
+      const maxTemp = feats.temp_maxima;
       _dpChartTemp = new Chart(tempCtx, {
         type: "bar",
         data: {
@@ -615,7 +704,7 @@
           datasets: [{
             label: "Temperatura (°C)",
             data: [feats.temp_minima, feats.temp_media, feats.temp_maxima],
-            backgroundColor: ["#3b82f6", "#6366f1", feats.temp_maxima > 30 ? "#ef4444" : "#f59e0b"],
+            backgroundColor: ["#3b82f6", "#6366f1", maxTemp > 30 ? "#ef4444" : "#f59e0b"],
             borderRadius: 5,
             barThickness: 32,
           }],
@@ -642,14 +731,15 @@
          <div class="text-muted text-center py-4" style="font-size:.8rem">Sem dados de telemetria disponíveis.</div>`;
     }
 
-    // Feature list
+    // ── Indicadores de Comportamento ──────────────────────────────────────────
     const featBox = document.getElementById("dp-feat-box");
     if (featBox && feats) {
       const items = [
-        { label: "Tendência de Temp.",  val: feats.temp_tendencia,  unit: "°C/leit.", max: 2 },
-        { label: "Amplitude Térmica",   val: feats.temp_amplitude,  unit: "°C",       max: 20 },
-        { label: "Leituras Acima Set.", val: feats.leituras_acima_setpoint, unit: "",  max: 100 },
-        { label: "Variância de Temp.",  val: feats.temp_variancia,  unit: "",          max: 50 },
+        { label: "Tendência de Temp.",       val: feats.temp_tendencia,          unit: "°C/leit.", max: 2   },
+        { label: "Amplitude Térmica",        val: feats.temp_amplitude,          unit: "°C",       max: 20  },
+        { label: "Leituras Acima Setpoint",  val: feats.leituras_acima_setpoint, unit: "%",        max: 100 },
+        { label: "Variância de Temp.",       val: feats.temp_variancia,          unit: "",         max: 50  },
+        { label: "Total de Leituras",        val: feats.total_leituras,          unit: "",         max: 500 },
       ].filter(i => i.val != null);
 
       if (items.length) {
@@ -657,17 +747,22 @@
           <div class="detail-chart-box-title">Indicadores de Comportamento</div>
           <div class="detail-feat-list">
             ${items.map(i => {
-              const pct = Math.min(100, Math.round((Math.abs(i.val) / i.max) * 100));
+              const pct    = Math.min(100, Math.round((Math.abs(i.val) / i.max) * 100));
               const valFmt = typeof i.val === "number" ? i.val.toFixed(2) : i.val;
+              const barClr = i.label.includes("Tendência") && i.val > 0.5 ? "#ef4444"
+                : i.label.includes("Amplitude") && i.val > 10 ? "#f59e0b"
+                : "#6366f1";
               return `<div class="detail-feat-row">
                 <span class="detail-feat-label">${i.label}</span>
-                <div class="detail-feat-bar-track"><div class="detail-feat-bar-fill" style="width:${pct}%"></div></div>
+                <div class="detail-feat-bar-track">
+                  <div class="detail-feat-bar-fill" style="width:${pct}%;background:${barClr}"></div>
+                </div>
                 <span class="detail-feat-value">${valFmt}${i.unit}</span>
               </div>`;
             }).join("")}
           </div>`;
       } else {
-        featBox.innerHTML = `<div class="detail-chart-box-title">Indicadores</div>
+        featBox.innerHTML = `<div class="detail-chart-box-title">Indicadores de Comportamento</div>
           <div class="text-muted text-center py-4" style="font-size:.8rem">Sem dados disponíveis.</div>`;
       }
     }

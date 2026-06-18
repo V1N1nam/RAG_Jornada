@@ -110,6 +110,7 @@ def dash_loja():
 
     dashboard = buscar_dashboard_loja(loja_id)
     alarmes   = buscar_alarmes_loja(loja_id)
+    import os as _os
     return render_template(
         "loja_dash.html",
         loja_id=dashboard["loja_id"],
@@ -121,6 +122,7 @@ def dash_loja():
         stats=alarmes["stats"],
         alarmes=alarmes["alarmes"],
         atualizado=datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+        support_phone=_os.getenv("SUPPORT_PHONE_DISPLAY", ""),
     )
 
 
