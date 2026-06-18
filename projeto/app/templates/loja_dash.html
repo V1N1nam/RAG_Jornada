@@ -133,6 +133,29 @@
 
   <main class="content">
 
+    {% if not ml_api_ok %}
+    <div id="ml-api-banner" style="
+      display:flex;align-items:center;gap:.75rem;
+      background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);
+      border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;
+      font-size:.82rem;color:#fbbf24;">
+      <i class="bi bi-cloud-slash" style="font-size:1.1rem;flex-shrink:0"></i>
+      <span>
+        <strong>Sistema ML em inicialização</strong> — a API de dados está acordando no servidor.
+        Os dados aparecerão assim que ela estiver pronta.
+      </span>
+      <button onclick="location.reload()" style="
+        margin-left:auto;flex-shrink:0;background:#f59e0b;color:#000;border:none;
+        border-radius:6px;padding:.3rem .8rem;font-size:.78rem;font-weight:600;cursor:pointer;">
+        <i class="bi bi-arrow-clockwise me-1"></i>Recarregar
+      </button>
+    </div>
+    <script>
+      // Auto-recarrega a cada 20 s enquanto a ML API estiver offline
+      setTimeout(function(){ location.reload(); }, 20000);
+    </script>
+    {% endif %}
+
     <!-- KPIs -->
     <section id="section-kpis" class="mb-4 anim-fade-in-up">
       <div class="kpi-grid">

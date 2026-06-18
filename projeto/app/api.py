@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 
 import requests as _requests
@@ -108,9 +109,17 @@ def dash_loja():
     except (BadSignature, KeyError, Exception):
         return "<h2>Link inválido.</h2>", 403
 
+    # Ping rápido na ML API (2 s) para saber se está acordada
+    ml_api_ok = False
+    try:
+        _ping = _requests.get(f"{ML_API_BASE_URL}/api/health", timeout=2)
+        ml_api_ok = _ping.status_code == 200
+    except Exception:
+        pass
+
     dashboard = buscar_dashboard_loja(loja_id)
     alarmes   = buscar_alarmes_loja(loja_id)
-    import os as _os
+
     return render_template(
         "loja_dash.html",
         loja_id=dashboard["loja_id"],
@@ -122,7 +131,8 @@ def dash_loja():
         stats=alarmes["stats"],
         alarmes=alarmes["alarmes"],
         atualizado=datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-        support_phone=_os.getenv("SUPPORT_PHONE_DISPLAY", ""),
+        support_phone=os.getenv("SUPPORT_PHONE_DISPLAY", ""),
+        ml_api_ok=ml_api_ok,
     )
 
 
