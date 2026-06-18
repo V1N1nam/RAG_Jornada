@@ -261,6 +261,38 @@ def handle_chat_message(phone: str, text: str, loja_id: int | None = None) -> di
                 "loja_id": loja_id,
             }
 
+        # Troca de unidade enquanto está no menu
+        loja_nova = _extrair_loja_id(text)
+        if loja_nova and loja_nova != loja_id:
+            loja_id = loja_nova
+            update_conversation_loja(phone, loja_id)
+            answer = generate_loja_confirmation_menu(loja_id)
+            register_assistant_message(conversation["id"], answer)
+            return {
+                "phone": phone,
+                "state": "awaiting_menu_choice",
+                "intent": "loja_changed",
+                "answer": answer,
+                "loja_id": loja_id,
+            }
+
+        # Pergunta em texto livre — não obriga a escolher opção numerada
+        if intent in ("question", "problem"):
+            ctx = buscar_contexto_loja(loja_id) if loja_id else ""
+            history = get_historico_formatado(conversation["id"])
+            rag_result = ask_question(text, k=3, extra_context=ctx, history=history)
+            answer = rag_result["answer"] + _FOOTER_SUPORTE
+            register_assistant_message(conversation["id"], answer)
+            set_conversation_state(phone, "in_support", intent)
+            return {
+                "phone": phone,
+                "state": "in_support",
+                "intent": intent,
+                "answer": answer,
+                "sources": rag_result["sources"],
+                "loja_id": loja_id,
+            }
+
         # Opção não reconhecida — reexibe o menu
         answer = (
             generate_loja_confirmation_menu(loja_id)
@@ -283,6 +315,25 @@ def handle_chat_message(phone: str, text: str, loja_id: int | None = None) -> di
         return {"phone": phone, "state": "awaiting_human", "intent": "waiting", "answer": answer}
 
     # ── Suporte ativo ────────────────────────────────────────────────────────
+
+    # Troca explícita de unidade durante o suporte ("unidade 1234", "loja 1234")
+    if current_state in ("in_support", "awaiting_problem_description"):
+        m = _LOJA_RE.search(text)
+        if m:
+            loja_nova = int(m.group(1))
+            if loja_nova != loja_id:
+                loja_id = loja_nova
+                update_conversation_loja(phone, loja_id)
+                answer = generate_loja_confirmation_menu(loja_id)
+                register_assistant_message(conversation["id"], answer)
+                set_conversation_state(phone, "awaiting_menu_choice", "loja_changed")
+                return {
+                    "phone": phone,
+                    "state": "awaiting_menu_choice",
+                    "intent": "loja_changed",
+                    "answer": answer,
+                    "loja_id": loja_id,
+                }
 
     eletrofio_ctx = buscar_contexto_loja(loja_id) if loja_id else ""
 
