@@ -9,6 +9,74 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+.detail-panel {
+  position: fixed; top: 0; right: 0; width: min(100%, 960px);
+  height: 100vh; background: #0f172a; border-left: 1px solid #1e293b;
+  z-index: 1200; transform: translateX(100%); transition: transform .3s cubic-bezier(.4,0,.2,1);
+  overflow-y: auto; display: flex; flex-direction: column;
+}
+.detail-panel.open { transform: translateX(0); }
+.detail-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.55); z-index: 1199; backdrop-filter: blur(2px);
+}
+.detail-overlay.open { display: block; }
+.detail-header {
+  display: flex; align-items: center; gap: .75rem;
+  padding: 1rem 1.25rem; border-bottom: 1px solid #1e293b;
+  position: sticky; top: 0; background: #0f172a; z-index: 1;
+}
+.detail-back-btn {
+  display: flex; align-items: center; gap: .4rem;
+  background: #1e293b; border: none; color: #94a3b8;
+  padding: .35rem .75rem; border-radius: 6px; font-size: .8rem;
+  cursor: pointer; transition: background .15s;
+}
+.detail-back-btn:hover { background: #334155; color: #f1f5f9; }
+.detail-title { font-size: 1rem; font-weight: 700; color: #f1f5f9; flex: 1; }
+.detail-body { padding: 1.25rem; flex: 1; display: flex; flex-direction: column; gap: 1.25rem; }
+.detail-section-title {
+  font-size: .68rem; font-weight: 700; color: #475569;
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: .65rem;
+}
+.detail-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
+.detail-info-item {
+  background: #1e293b; border-radius: 8px; padding: .65rem .85rem;
+}
+.detail-info-label { font-size: .67rem; color: #64748b; text-transform: uppercase; letter-spacing: .06em; }
+.detail-info-value { font-size: .9rem; font-weight: 600; color: #e2e8f0; margin-top: .15rem; }
+.detail-info-value.val-warn { color: #f97316; }
+.detail-info-value.val-crit { color: #ef4444; }
+.detail-info-value.val-ok  { color: #22c55e; }
+.detail-chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.detail-chart-box { background: #1e293b; border-radius: 10px; padding: 1rem; }
+.detail-chart-box-title { font-size: .73rem; font-weight: 600; color: #94a3b8; margin-bottom: .75rem; }
+.detail-chart-canvas-wrap { height: 180px; position: relative; }
+.detail-feat-list { display: flex; flex-direction: column; gap: .55rem; }
+.detail-feat-row { display: flex; align-items: center; gap: .6rem; }
+.detail-feat-label { font-size: .7rem; color: #64748b; width: 150px; flex-shrink: 0; }
+.detail-feat-bar-track { flex: 1; background: #0f172a; border-radius: 3px; height: 6px; overflow: hidden; }
+.detail-feat-bar-fill { height: 6px; border-radius: 3px; background: #6366f1; }
+.detail-feat-value { font-size: .7rem; color: #94a3b8; width: 52px; text-align: right; flex-shrink: 0; }
+.detail-anomalia-tag {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: .78rem; padding: .3rem .7rem; border-radius: 20px; font-weight: 600;
+}
+.detail-anomalia-tag.yes { background: rgba(239,68,68,.12); color: #ef4444; border: 1px solid rgba(239,68,68,.3); }
+.detail-anomalia-tag.no  { background: rgba(34,197,94,.1);  color: #22c55e; border: 1px solid rgba(34,197,94,.25); }
+.detail-action-row { display: flex; gap: .75rem; padding-top: .5rem; border-top: 1px solid #1e293b; }
+.detail-chamado-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: .5rem;
+  background: #3b82f6; color: #fff; border: none; border-radius: 8px;
+  padding: .7rem 1.25rem; font-size: .85rem; font-weight: 600; cursor: pointer; transition: background .15s;
+}
+.detail-chamado-btn:hover { background: #2563eb; }
+@media (max-width: 640px) {
+  .detail-info-grid { grid-template-columns: 1fr; }
+  .detail-chart-row { grid-template-columns: 1fr; }
+}
+</style>
 </head>
 <body>
 
@@ -29,7 +97,6 @@
     <div class="sidebar-section-label">Esta Unidade</div>
     <a href="#section-kpis"       class="sidebar-link active" title="Visão Geral"><i class="bi bi-grid-1x2-fill"></i><span>Visão Geral</span></a>
     <a href="#section-risco"      class="sidebar-link" title="Análise de Risco"><i class="bi bi-shield-exclamation"></i><span>Risco ML</span></a>
-    <a href="#section-financeiro" class="sidebar-link" title="Impacto Financeiro"><i class="bi bi-currency-exchange"></i><span>Financeiro</span></a>
     <a href="#section-alarmes"    class="sidebar-link" title="Alarmes"><i class="bi bi-bell-fill"></i><span>Alarmes</span></a>
     <a href="#section-modelo"     class="sidebar-link" title="Modelo Preditivo"><i class="bi bi-bar-chart-fill"></i><span>Modelo</span></a>
     <div class="sidebar-divider"></div>
@@ -109,24 +176,6 @@
           </div>
         </div>
 
-        {% if financeiro and financeiro.totais and financeiro.totais.exposicao_diaria %}
-        <div class="kpi-card" style="border-top:3px solid #f97316">
-          <div class="kpi-card-top">
-            <span class="kpi-lbl">Exposição / Dia</span>
-            <div class="kpi-icon" style="background:rgba(249,115,22,.15);color:#f97316"><i class="bi bi-currency-dollar"></i></div>
-          </div>
-          <div class="kpi-num" style="color:#f97316;font-size:1.3rem">R${{ "{:,.0f}".format(financeiro.totais.exposicao_diaria or 0).replace(",",".") }}</div>
-          <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:100%;background:#f97316"></div></div>
-        </div>
-        <div class="kpi-card" style="border-top:3px solid #22c55e">
-          <div class="kpi-card-top">
-            <span class="kpi-lbl">Economia / Dia</span>
-            <div class="kpi-icon" style="background:rgba(34,197,94,.15);color:#22c55e"><i class="bi bi-graph-down-arrow"></i></div>
-          </div>
-          <div class="kpi-num" style="color:#22c55e;font-size:1.3rem">R${{ "{:,.0f}".format(financeiro.totais.economia_diaria or 0).replace(",",".") }}</div>
-          <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:100%;background:#22c55e"></div></div>
-        </div>
-        {% endif %}
 
         {% if saude %}
         <div class="kpi-card" style="border-top:3px solid #6366f1">
@@ -210,65 +259,6 @@
         </div>
       </div>
     </section>
-
-    <!-- Impacto Financeiro -->
-    {% if financeiro and financeiro.devices %}
-    <section id="section-financeiro" class="mb-4 anim-fade-in-up" style="animation-delay:.15s">
-      <div class="card-panel">
-        <div class="panel-header">
-          <div class="d-flex align-items-center gap-2">
-            <span class="panel-title">Impacto Financeiro</span>
-            <span class="panel-count">{{ financeiro.devices | length }}</span>
-          </div>
-          <span class="panel-badge">dashboard/financeiro</span>
-        </div>
-        <div class="table-responsive">
-          <table class="dash-table">
-            <thead>
-              <tr>
-                <th>Criticidade</th>
-                <th>Dispositivo</th>
-                <th class="text-center">Exp / Hora</th>
-                <th class="text-center">Exp / Dia</th>
-                <th class="text-center">Economia / Dia</th>
-                <th class="text-center">ROI</th>
-                <th class="text-center">Recomendação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for d in financeiro.devices %}
-              <tr class="row-crit-{{ d.criticidade }}">
-                <td><span class="crit-badge crit-{{ d.criticidade }}">{{ d.criticidade }} · {{ d.crit_label }}</span></td>
-                <td class="fw-medium">{{ d.dispositivo_nome }}</td>
-                <td class="text-center text-sm" style="color:#f97316">R${{ "{:,.0f}".format(d.exposicao_hora or 0).replace(",",".") }}</td>
-                <td class="text-center fw-semibold" style="color:#f97316">R${{ "{:,.0f}".format(d.exposicao_diaria or 0).replace(",",".") }}</td>
-                <td class="text-center fw-semibold" style="color:#22c55e">R${{ "{:,.0f}".format(d.economia_diaria or 0).replace(",",".") }}</td>
-                <td class="text-center"><span class="pill pill-info">{{ d.roi or "—" }}x</span></td>
-                <td class="text-center">
-                  {% if d.recomendacao == 'Recomendado' %}
-                  <span class="pill pill-success">{{ d.recomendacao }}</span>
-                  {% else %}
-                  <span class="text-muted text-sm">{{ d.recomendacao }}</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-            <tfoot>
-              <tr style="border-top:2px solid #334155">
-                <td colspan="2" class="fw-semibold text-sm" style="color:#94a3b8">TOTAL</td>
-                <td></td>
-                <td class="text-center fw-bold" style="color:#f97316">R${{ "{:,.0f}".format(financeiro.totais.exposicao_diaria or 0).replace(",",".") }}</td>
-                <td class="text-center fw-bold" style="color:#22c55e">R${{ "{:,.0f}".format(financeiro.totais.economia_diaria or 0).replace(",",".") }}</td>
-                <td></td>
-                <td class="text-center text-sm" style="color:#94a3b8">R${{ "{:,.0f}".format(financeiro.totais.custo_intervencao or 0).replace(",",".") }} p/ intervenções</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-    </section>
-    {% endif %}
 
     <!-- Alarmes Ativos -->
     <section id="section-alarmes" class="mb-4 anim-fade-in-up" style="animation-delay:.2s">
@@ -371,6 +361,23 @@
     </p>
 
   </main>
+</div>
+
+<!-- Detail Overlay -->
+<div class="detail-overlay" id="detailOverlay" onclick="fecharDetalheAlarme()"></div>
+
+<!-- Detail Panel -->
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-header">
+    <button class="detail-back-btn" onclick="fecharDetalheAlarme()">
+      <i class="bi bi-arrow-left"></i> Voltar
+    </button>
+    <div class="detail-title" id="dp-title">Detalhes do Alarme</div>
+    <span id="dp-crit-badge"></span>
+  </div>
+  <div class="detail-body" id="dp-body">
+    <div class="text-center text-muted py-5">Carregando...</div>
+  </div>
 </div>
 
 <!-- Toast Container -->

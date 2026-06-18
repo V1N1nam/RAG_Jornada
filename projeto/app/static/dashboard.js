@@ -267,11 +267,11 @@
     const trat  = a.sem_tratativa
       ? `<span class="pill pill-danger">Pendente</span>`
       : `<span class="status-ok"><i class="bi bi-check-lg"></i></span>`;
+    const aJson = JSON.stringify(a).replace(/"/g, "&quot;");
 
     return `
-      <tr class="row-crit-${crit}">
+      <tr class="row-crit-${crit}" style="cursor:pointer" onclick="abrirDetalheAlarme(${aJson})">
         <td><span class="crit-badge crit-${crit}">${crit} · ${label}</span></td>
-        <td class="fw-medium td-loja" title="${a.loja_nome || ""}">${a.loja_nome || "—"}</td>
         <td><code class="tag-code">${a.tag || "—"}</code></td>
         <td class="text-sm td-alarme" title="${a.alarme_desc || ""}">${a.alarme_desc || "—"}</td>
         <td class="text-muted text-sm text-nowrap">${a.tempo || "—"}</td>
@@ -279,7 +279,7 @@
         <td class="text-center tele-anomalia" data-id="${id}"><span class="shimmer"></span></td>
         <td class="text-center tele-temp" data-id="${id}"><span class="shimmer"></span></td>
         <td class="text-center">${trat}</td>
-        <td class="text-center">
+        <td class="text-center" onclick="event.stopPropagation()">
           <button class="btn-action"
             data-dispositivo-id="${id}"
             data-loja-id="${a.loja_id}"
@@ -287,8 +287,8 @@
             data-tag="${a.tag}"
             data-alarme="${a.alarme_desc || ""}"
             data-crit="${crit}"
-            onclick="abrirModalChamado(this)">
-            <i class="bi bi-plus-lg"></i> Chamado
+            onclick="abrirDetalheAlarme(${aJson})">
+            <i class="bi bi-zoom-in"></i> Detalhes
           </button>
         </td>
       </tr>`;
@@ -339,7 +339,7 @@
 
     tbody.innerHTML = slice.length
       ? slice.map(buildAlarmeRow).join("")
-      : `<tr><td colspan="10" class="text-center text-muted py-4">Nenhum alarme ativo.</td></tr>`;
+      : `<tr><td colspan="9" class="text-center text-muted py-4">Nenhum alarme ativo.</td></tr>`;
 
     if (pag) pag.innerHTML = total > ALARMES_PG_SZ
       ? buildPaginacao(pagina, total, ALARMES_PG_SZ, "irPaginaAlarmes")
@@ -447,6 +447,252 @@
       input.addEventListener("input", (e) => filtrarUnidades(e.target.value));
     }
   }
+
+  // ── Painel de Detalhes do Alarme ────────────────────────────────────────────
+
+  let _dpChartRisco = null;
+  let _dpChartTemp  = null;
+
+  function fecharDetalheAlarme() {
+    document.getElementById("detailPanel")?.classList.remove("open");
+    document.getElementById("detailOverlay")?.classList.remove("open");
+    document.body.style.overflow = "";
+  }
+  window.fecharDetalheAlarme = fecharDetalheAlarme;
+
+  window.abrirDetalheAlarme = async function (a) {
+    const panel   = document.getElementById("detailPanel");
+    const overlay = document.getElementById("detailOverlay");
+    const body    = document.getElementById("dp-body");
+    const title   = document.getElementById("dp-title");
+    const badge   = document.getElementById("dp-crit-badge");
+
+    if (!panel) return;
+
+    const crit      = a.criticidade || "I";
+    const critLabel = CRIT_LABELS[crit] || crit;
+
+    title.textContent = `${a.tag || "Dispositivo"} — ${a.alarme_desc || "Alarme"}`;
+    badge.innerHTML   = `<span class="crit-badge crit-${crit}">${crit} · ${critLabel}</span>`;
+
+    // Skeleton inicial
+    body.innerHTML = `
+      <div>
+        <div class="detail-section-title">Informações do Alarme</div>
+        <div class="detail-info-grid">
+          ${infoItem("Dispositivo (Tag)", a.tag || "—")}
+          ${infoItem("Criticidade", `<span class='crit-badge crit-${crit}'>${crit} · ${critLabel}</span>`, "")}
+          ${infoItem("Descrição do Alarme", a.alarme_desc || "—", a.alarme_desc && a.alarme_desc.length > 20 ? "val-warn" : "")}
+          ${infoItem("Tempo Ativo", a.tempo || "—", "val-warn")}
+          ${infoItem("ID Dispositivo", a.dispositivo_id || "—")}
+          ${infoItem("Tratativa", a.sem_tratativa ? "⚠ Pendente" : "✓ Registrada", a.sem_tratativa ? "val-crit" : "val-ok")}
+        </div>
+      </div>
+
+      <div>
+        <div class="detail-section-title">Análise ML</div>
+        <div class="detail-chart-row">
+          <div class="detail-chart-box">
+            <div class="detail-chart-box-title">Score de Risco</div>
+            <div class="detail-chart-canvas-wrap"><canvas id="dp-chart-risco"></canvas></div>
+          </div>
+          <div class="detail-chart-box" id="dp-anomalia-box">
+            <div class="detail-chart-box-title">Anomalia Detectada</div>
+            <div class="text-center py-4"><span class="shimmer" style="width:80px;height:24px;display:inline-block;border-radius:12px"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="dp-tele-section">
+        <div class="detail-section-title">Telemetria</div>
+        <div class="detail-chart-row">
+          <div class="detail-chart-box">
+            <div class="detail-chart-box-title">Temperatura (Mín / Méd / Máx)</div>
+            <div class="detail-chart-canvas-wrap"><canvas id="dp-chart-temp"></canvas></div>
+          </div>
+          <div class="detail-chart-box" id="dp-feat-box">
+            <div class="detail-chart-box-title">Indicadores</div>
+            <div class="text-center py-4"><span class="shimmer" style="width:80%;height:12px;display:inline-block;border-radius:4px"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-action-row">
+        <button class="detail-chamado-btn"
+          onclick="abrirModalChamadoFromDetail(${a.dispositivo_id}, ${a.loja_id}, '${(a.loja_nome||"").replace(/'/g,"\\'")}', '${(a.tag||"").replace(/'/g,"\\'")}', '${(a.alarme_desc||"").replace(/'/g,"\\'")}', '${crit}')">
+          <i class="bi bi-tools"></i> Abrir Chamado Técnico
+        </button>
+      </div>`;
+
+    // Destroi charts anteriores
+    if (_dpChartRisco) { _dpChartRisco.destroy(); _dpChartRisco = null; }
+    if (_dpChartTemp)  { _dpChartTemp.destroy();  _dpChartTemp  = null; }
+
+    panel.classList.add("open");
+    overlay.classList.add("open");
+    document.body.style.overflow = "hidden";
+
+    // Carrega dados em paralelo
+    const [teleRes, predRes] = await Promise.all([
+      carregarTelemetria(a.dispositivo_id),
+      carregarPredicao(a.dispositivo_id),
+    ]);
+
+    // Chart risco (gauge doughnut)
+    const riskPct = predRes.risk != null ? Math.round(predRes.risk * 100) : null;
+    const riskCtx = document.getElementById("dp-chart-risco");
+    if (riskCtx) {
+      const riskColor = riskPct == null ? "#334155"
+        : riskPct < 30 ? "#22c55e"
+        : riskPct < 75 ? "#f59e0b"
+        : "#ef4444";
+      _dpChartRisco = new Chart(riskCtx, {
+        type: "doughnut",
+        data: {
+          datasets: [{
+            data: [riskPct ?? 0, 100 - (riskPct ?? 0)],
+            backgroundColor: [riskColor, "#1e293b"],
+            borderWidth: 0,
+            circumference: 270,
+            rotation: -135,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: "72%",
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: false },
+          },
+        },
+        plugins: [{
+          id: "gauge-text",
+          afterDraw(chart) {
+            const { ctx, chartArea: { left, right, top, bottom } } = chart;
+            const cx = (left + right) / 2;
+            const cy = (top + bottom) / 2 + 20;
+            ctx.save();
+            ctx.fillStyle = riskPct == null ? "#64748b" : riskColor;
+            ctx.font = "bold 28px Inter, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(riskPct != null ? `${riskPct}%` : "—", cx, cy - 8);
+            ctx.fillStyle = "#64748b";
+            ctx.font = "12px Inter, sans-serif";
+            const lbl = riskPct == null ? "sem dados"
+              : riskPct < 30 ? "Baixo"
+              : riskPct < 75 ? "Médio" : "Alto";
+            ctx.fillText(lbl, cx, cy + 18);
+            ctx.restore();
+          },
+        }],
+      });
+    }
+
+    // Anomalia box
+    const anomBox = document.getElementById("dp-anomalia-box");
+    if (anomBox) {
+      const anomHtml = predRes.anomaly
+        ? `<div class="d-flex flex-column align-items-center gap-2 pt-2">
+             <span class="detail-anomalia-tag yes"><i class="bi bi-exclamation-triangle-fill"></i> Anomalia Detectada</span>
+             ${predRes.reason ? `<div style="font-size:.75rem;color:#94a3b8;text-align:center;padding:.5rem">${predRes.reason}</div>` : ""}
+           </div>`
+        : `<div class="text-center pt-3">
+             <span class="detail-anomalia-tag no"><i class="bi bi-check-circle-fill"></i> Sem Anomalia</span>
+           </div>`;
+      anomBox.querySelector("div:last-child").innerHTML = anomHtml;
+    }
+
+    // Chart temperatura
+    const feats = teleRes.features;
+    const tempCtx = document.getElementById("dp-chart-temp");
+    if (tempCtx && feats && feats.temp_minima != null) {
+      _dpChartTemp = new Chart(tempCtx, {
+        type: "bar",
+        data: {
+          labels: ["Mínima", "Média", "Máxima"],
+          datasets: [{
+            label: "Temperatura (°C)",
+            data: [feats.temp_minima, feats.temp_media, feats.temp_maxima],
+            backgroundColor: ["#3b82f6", "#6366f1", feats.temp_maxima > 30 ? "#ef4444" : "#f59e0b"],
+            borderRadius: 5,
+            barThickness: 32,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: c => ` ${c.parsed.y}°C` } },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: "#64748b", font: { size: 11 } } },
+            y: {
+              ticks: { color: "#64748b", font: { size: 10 }, callback: v => `${v}°C` },
+              grid: { color: "rgba(255,255,255,.05)" },
+            },
+          },
+        },
+      });
+    } else if (tempCtx) {
+      tempCtx.closest(".detail-chart-box").innerHTML =
+        `<div class="detail-chart-box-title">Temperatura</div>
+         <div class="text-muted text-center py-4" style="font-size:.8rem">Sem dados de telemetria disponíveis.</div>`;
+    }
+
+    // Feature list
+    const featBox = document.getElementById("dp-feat-box");
+    if (featBox && feats) {
+      const items = [
+        { label: "Tendência de Temp.",  val: feats.temp_tendencia,  unit: "°C/leit.", max: 2 },
+        { label: "Amplitude Térmica",   val: feats.temp_amplitude,  unit: "°C",       max: 20 },
+        { label: "Leituras Acima Set.", val: feats.leituras_acima_setpoint, unit: "",  max: 100 },
+        { label: "Variância de Temp.",  val: feats.temp_variancia,  unit: "",          max: 50 },
+      ].filter(i => i.val != null);
+
+      if (items.length) {
+        featBox.innerHTML = `
+          <div class="detail-chart-box-title">Indicadores de Comportamento</div>
+          <div class="detail-feat-list">
+            ${items.map(i => {
+              const pct = Math.min(100, Math.round((Math.abs(i.val) / i.max) * 100));
+              const valFmt = typeof i.val === "number" ? i.val.toFixed(2) : i.val;
+              return `<div class="detail-feat-row">
+                <span class="detail-feat-label">${i.label}</span>
+                <div class="detail-feat-bar-track"><div class="detail-feat-bar-fill" style="width:${pct}%"></div></div>
+                <span class="detail-feat-value">${valFmt}${i.unit}</span>
+              </div>`;
+            }).join("")}
+          </div>`;
+      } else {
+        featBox.innerHTML = `<div class="detail-chart-box-title">Indicadores</div>
+          <div class="text-muted text-center py-4" style="font-size:.8rem">Sem dados disponíveis.</div>`;
+      }
+    }
+  };
+
+  function infoItem(label, value, cls) {
+    return `<div class="detail-info-item">
+      <div class="detail-info-label">${label}</div>
+      <div class="detail-info-value ${cls || ""}">${value}</div>
+    </div>`;
+  }
+
+  window.abrirModalChamadoFromDetail = function(dispId, lojaId, lojaNome, tag, alarme, crit) {
+    fecharDetalheAlarme();
+    setTimeout(() => {
+      const btn = document.createElement("button");
+      btn.dataset.dispositivoId = dispId;
+      btn.dataset.lojaId = lojaId;
+      btn.dataset.lojaNome = lojaNome;
+      btn.dataset.tag = tag;
+      btn.dataset.alarme = alarme;
+      btn.dataset.crit = crit;
+      abrirModalChamado(btn);
+    }, 320);
+  };
 
   // ── Modal: Abrir Chamado ────────────────────────────────────────────────────
 
